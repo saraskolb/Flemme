@@ -107,17 +107,13 @@ def uphill_discomfort(edge: Edge) -> float:
 
 
 def downhill_discomfort(edge: Edge) -> float:
-    downhill_grade = max(edge.sustained_downhill_grade_20m, edge.sustained_downhill_grade_50m)
-    downhill_grade = max(downhill_grade, edge.max_downhill_grade)
-    if downhill_grade <= 0.08:
-        return 0.0
-    return max(0.0, edge.length_m * downhill_penalty_curve(downhill_grade) * 0.15)
+    return 0.0
 
 
 def edge_allowed(edge: Edge, prefs: UserPrefs) -> bool:
     if prefs.forbid_stairs and edge.stairs:
         return False
-    if prefs.hard_max_grade is not None and edge.max_abs_grade > prefs.hard_max_grade:
+    if prefs.hard_max_grade is not None and edge.max_uphill_grade > prefs.hard_max_grade:
         return False
     if prefs.mode == "accessibility":
         if edge.stairs:
@@ -139,9 +135,8 @@ def edge_cost(edge: Edge, prefs: UserPrefs) -> float:
     score = (
         edge_time_s(edge, prefs)
         + prefs.lambda_uphill * uphill_discomfort(edge)
-        + prefs.lambda_downhill * downhill_discomfort(edge)
         + prefs.lambda_max_grade
-        * max_grade_penalty(edge.max_abs_grade, soft=prefs.soft_max_grade, hard=hard)
+        * max_grade_penalty(edge.max_uphill_grade, soft=prefs.soft_max_grade, hard=hard)
         + prefs.lambda_safety * max(0.0, edge.traffic_safety_score)
         + prefs.lambda_barrier * max(0.0, edge.barrier_penalty)
         + prefs.lambda_uncertainty * max(0.0, edge.uncertainty_penalty)

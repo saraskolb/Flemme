@@ -15,6 +15,7 @@ routing behavior.
 - Directed graph routing with A*
 - Nonnegative cost functions for fastest, balanced, avoid-hills, and
   accessibility profiles
+- Downhill grades are reported in metrics but do not affect hill avoidance
 - Grade, rolling-grade, gain/loss, and smoothing utilities
 - Synthetic A/B route fixture:
   - Route A: 0.6 mi, 10 minutes, includes a 16% hill

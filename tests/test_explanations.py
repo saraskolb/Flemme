@@ -36,6 +36,23 @@ def test_adjacent_steep_edges_on_same_street_merge() -> None:
     assert events[0].length_above_10pct_m == pytest.approx(60.0)
 
 
+def test_steep_downhill_is_not_reported_as_hill_event() -> None:
+    downhill = Edge(
+        edge_id=1,
+        source=1,
+        target=2,
+        geometry=[(0.0, 0.0), (1.0, 0.0)],
+        length_m=100.0,
+        loss_m=20.0,
+        max_downhill_grade=0.20,
+        max_abs_grade=0.20,
+        sustained_downhill_grade_20m=0.20,
+        base_time_s=100.0,
+    )
+
+    assert detect_hill_events([downhill]) == []
+
+
 def test_recommended_route_explanation_mentions_tradeoff_and_avoided_grade() -> None:
     nodes = {
         1: Node(1, lon=0.0, lat=0.0, x=0.0, y=0.0),
