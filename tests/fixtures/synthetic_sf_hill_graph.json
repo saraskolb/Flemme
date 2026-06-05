@@ -1,0 +1,153 @@
+{
+  "version": "dev-synthetic-001",
+  "nodes": [
+    {
+      "node_id": 1,
+      "lon": -122.4194,
+      "lat": 37.7749,
+      "x": 0.0,
+      "y": 0.0,
+      "z_m": 0.0,
+      "node_type": "intersection"
+    },
+    {
+      "node_id": 10,
+      "lon": -122.4154,
+      "lat": 37.7750,
+      "x": 350.0,
+      "y": 0.0,
+      "z_m": 0.0,
+      "node_type": "intersection"
+    },
+    {
+      "node_id": 11,
+      "lon": -122.4144,
+      "lat": 37.7750,
+      "x": 441.44,
+      "y": 0.0,
+      "z_m": 14.6304,
+      "node_type": "intersection"
+    },
+    {
+      "node_id": 20,
+      "lon": -122.4160,
+      "lat": 37.7780,
+      "x": 430.0,
+      "y": 120.0,
+      "z_m": 5.0,
+      "node_type": "intersection"
+    },
+    {
+      "node_id": 99,
+      "lon": -122.4090,
+      "lat": 37.7755,
+      "x": 965.606,
+      "y": 0.0,
+      "z_m": 5.0,
+      "node_type": "intersection"
+    }
+  ],
+  "edges": [
+    {
+      "edge_id": 101,
+      "source": 1,
+      "target": 10,
+      "street_name": "Market Street",
+      "geometry": [
+        [-122.4194, 37.7749],
+        [-122.4154, 37.7750]
+      ],
+      "length_m": 350.0,
+      "base_time_s": 200.0,
+      "slope_time_s": 0.0,
+      "sidewalk_availability": "both",
+      "sidewalk_width_m": 2.4,
+      "wheelchair_access": "yes",
+      "samples": [
+        {"dist_m": 0.0, "z_raw_m": 0.0, "z_smooth_m": 0.0},
+        {"dist_m": 350.0, "z_raw_m": 0.0, "z_smooth_m": 0.0}
+      ]
+    },
+    {
+      "edge_id": 102,
+      "source": 10,
+      "target": 11,
+      "street_name": "Steep Street",
+      "geometry": [
+        [-122.4154, 37.7750],
+        [-122.4144, 37.7750]
+      ],
+      "length_m": 91.44,
+      "base_time_s": 100.0,
+      "slope_time_s": 0.0,
+      "sidewalk_availability": "both",
+      "sidewalk_width_m": 2.0,
+      "wheelchair_access": "limited",
+      "samples": [
+        {"dist_m": 0.0, "z_raw_m": 0.0, "z_smooth_m": 0.0},
+        {"dist_m": 91.44, "z_raw_m": 14.6304, "z_smooth_m": 14.6304}
+      ]
+    },
+    {
+      "edge_id": 103,
+      "source": 11,
+      "target": 99,
+      "street_name": "Pine Street",
+      "geometry": [
+        [-122.4144, 37.7750],
+        [-122.4090, 37.7755]
+      ],
+      "length_m": 524.166,
+      "base_time_s": 300.0,
+      "slope_time_s": 0.0,
+      "sidewalk_availability": "both",
+      "sidewalk_width_m": 2.2,
+      "wheelchair_access": "yes",
+      "samples": [
+        {"dist_m": 0.0, "z_raw_m": 14.6304, "z_smooth_m": 14.6304},
+        {"dist_m": 524.166, "z_raw_m": 14.6304, "z_smooth_m": 14.6304}
+      ]
+    },
+    {
+      "edge_id": 201,
+      "source": 1,
+      "target": 20,
+      "street_name": "Gentle Avenue",
+      "geometry": [
+        [-122.4194, 37.7749],
+        [-122.4160, 37.7780]
+      ],
+      "length_m": 430.0,
+      "base_time_s": 270.0,
+      "slope_time_s": 0.0,
+      "sidewalk_availability": "both",
+      "sidewalk_width_m": 2.5,
+      "wheelchair_access": "yes",
+      "samples": [
+        {"dist_m": 0.0, "z_raw_m": 0.0, "z_smooth_m": 0.0},
+        {"dist_m": 100.0, "z_raw_m": 6.0, "z_smooth_m": 6.0},
+        {"dist_m": 430.0, "z_raw_m": 5.0, "z_smooth_m": 5.0}
+      ]
+    },
+    {
+      "edge_id": 202,
+      "source": 20,
+      "target": 99,
+      "street_name": "Gentle Avenue",
+      "geometry": [
+        [-122.4160, 37.7780],
+        [-122.4090, 37.7755]
+      ],
+      "length_m": 696.54,
+      "base_time_s": 390.0,
+      "slope_time_s": 0.0,
+      "sidewalk_availability": "both",
+      "sidewalk_width_m": 2.5,
+      "wheelchair_access": "yes",
+      "samples": [
+        {"dist_m": 0.0, "z_raw_m": 5.0, "z_smooth_m": 5.0},
+        {"dist_m": 696.54, "z_raw_m": 5.0, "z_smooth_m": 5.0}
+      ]
+    }
+  ]
+}

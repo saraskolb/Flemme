@@ -1,0 +1,25 @@
+services:
+  api:
+    build: .
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql+psycopg://flemme:flemme@db:5432/flemme
+      GRAPH_VERSION: dev-synthetic-001
+    depends_on:
+      - db
+
+  db:
+    image: postgis/postgis:16-3.4
+    environment:
+      POSTGRES_DB: flemme
+      POSTGRES_USER: flemme
+      POSTGRES_PASSWORD: flemme
+    ports:
+      - "5432:5432"
+    volumes:
+      - flemme-postgis-data:/var/lib/postgresql/data
+
+volumes:
+  flemme-postgis-data:
