@@ -11,6 +11,7 @@ from app.core.costs import (
     make_edge_cost,
     route_metrics,
 )
+from app.core.directions import build_directions
 from app.core.explanations import detect_hill_events, explain_route
 from app.core.models import Edge, Graph, RouteOption, UserPrefs
 from app.core.pareto import pareto_prune
@@ -42,6 +43,7 @@ def build_route_option(
         geometry=route_geometry(edges),
         metrics=route_metrics(edges, prefs),
         hill_events=detect_hill_events(edges),
+        directions=build_directions(edges, prefs),
         explanation="",
     )
 

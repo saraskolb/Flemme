@@ -39,6 +39,9 @@ def test_debug_synthetic_route_endpoint() -> None:
     assert payload["graph_version"] == "dev-synthetic-001"
     assert by_label["fastest"]["edge_ids"] == [101, 102, 103]
     assert by_label["recommended"]["edge_ids"] == [201, 202]
+    assert by_label["recommended"]["directions"][0]["instruction"].startswith(
+        "Walk"
+    )
     assert "16%" in by_label["recommended"]["explanation"]
 
 

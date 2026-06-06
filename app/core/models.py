@@ -113,12 +113,25 @@ class HillEvent:
 
 
 @dataclass(slots=True)
+class DirectionStep:
+    instruction: str
+    street_name: str | None
+    distance_m: float
+    time_s: float
+    gain_m: float
+    loss_m: float
+    max_uphill_grade: float
+    geometry: list[Coordinate]
+
+
+@dataclass(slots=True)
 class RouteOption:
     label: Literal["fastest", "balanced", "flattest", "recommended", "accessible"]
     edge_ids: list[int]
     geometry: list[Coordinate]
     metrics: RouteMetrics
     hill_events: list[HillEvent] = field(default_factory=list)
+    directions: list[DirectionStep] = field(default_factory=list)
     explanation: str = ""
 
 
