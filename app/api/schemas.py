@@ -70,12 +70,24 @@ class HillEventOut(BaseModel):
     length_above_10pct_m: float
 
 
+class DirectionStepOut(BaseModel):
+    instruction: str
+    street_name: str | None
+    distance_m: float
+    time_s: float
+    gain_m: float
+    loss_m: float
+    max_uphill_grade: float
+    geometry: list[tuple[float, float]]
+
+
 class RouteOptionOut(BaseModel):
     label: str
     edge_ids: list[int]
     geometry: list[tuple[float, float]]
     metrics: RouteMetricsOut
     hill_events: list[HillEventOut]
+    directions: list[DirectionStepOut]
     explanation: str
 
 
@@ -103,5 +115,6 @@ def route_option_to_out(option: RouteOption) -> RouteOptionOut:
         geometry=option.geometry,
         metrics=RouteMetricsOut(**asdict(option.metrics)),
         hill_events=[HillEventOut(**asdict(event)) for event in option.hill_events],
+        directions=[DirectionStepOut(**asdict(step)) for step in option.directions],
         explanation=option.explanation,
     )
