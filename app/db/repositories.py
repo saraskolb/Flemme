@@ -7,6 +7,7 @@ from typing import Any, Protocol
 
 from sqlalchemy import create_engine, text
 
+from app.core.edge_naming import assign_edge_display_names
 from app.core.grade import aggregate_edge_grade_metrics, with_rolling_grades
 from app.core.models import Edge, ElevationSample, Graph, Node
 
@@ -61,7 +62,9 @@ def graph_from_mapping(data: dict[str, Any]) -> Graph:
         int(edge["edge_id"]): _edge_from_dict(edge)
         for edge in data.get("edges", [])
     }
-    return Graph(nodes=nodes, edges=edges, version=data.get("version", "dev-synthetic-001"))
+    return assign_edge_display_names(
+        Graph(nodes=nodes, edges=edges, version=data.get("version", "dev-synthetic-001"))
+    )
 
 
 def graph_to_mapping(graph: Graph) -> dict[str, Any]:
@@ -199,6 +202,12 @@ class PostGISGraphRepository:
                           access,
                           osm_way_id,
                           COALESCE(source_tags, '{}'::jsonb) AS source_tags,
+                          display_name,
+                          COALESCE(name_source, 'unknown') AS name_source,
+                          source_dataset,
+                          source_feature_id,
+                          COALESCE(name_confidence, 0) AS name_confidence,
+                          COALESCE(name_status, 'unknown') AS name_status,
                           base_time_s,
                           slope_time_s,
                           traffic_safety_score,
@@ -237,6 +246,12 @@ class PostGISGraphRepository:
                         if row["osm_way_id"] is not None
                         else None,
                         source_tags=dict(row["source_tags"] or {}),
+                        display_name=row["display_name"],
+                        name_source=str(row["name_source"] or "unknown"),
+                        source_dataset=row["source_dataset"],
+                        source_feature_id=row["source_feature_id"],
+                        name_confidence=float(row["name_confidence"] or 0.0),
+                        name_status=str(row["name_status"] or "unknown"),
                         samples=samples_by_edge.get(edge_id, []),
                         gain_m=float(row["gain_m"] or 0.0),
                         loss_m=float(row["loss_m"] or 0.0),
@@ -269,7 +284,7 @@ class PostGISGraphRepository:
 
                 if not nodes or not edges:
                     raise GraphUnavailable("PostGIS graph tables are empty.")
-                return Graph(nodes=nodes, edges=edges, version="postgis")
+                return assign_edge_display_names(Graph(nodes=nodes, edges=edges, version="postgis"))
         except GraphUnavailable:
             raise
         except Exception as exc:
@@ -334,6 +349,8 @@ def save_graph_to_postgis(graph: Graph, database_url: str, truncate: bool = True
                       length_above_10pct_up_m, length_above_12pct_up_m,
                       sidewalk_availability, sidewalk_width_m, wheelchair_access,
                       stairs, surface, access, osm_way_id, source_tags,
+                      display_name, name_source, source_dataset, source_feature_id,
+                      name_confidence, name_status,
                       base_time_s, slope_time_s,
                       traffic_safety_score, barrier_penalty, uncertainty_penalty
                     )
@@ -350,6 +367,8 @@ def save_graph_to_postgis(graph: Graph, database_url: str, truncate: bool = True
                       :length_above_12pct_up_m, :sidewalk_availability,
                       :sidewalk_width_m, :wheelchair_access, :stairs, :surface,
                       :access, :osm_way_id, CAST(:source_tags AS jsonb),
+                      :display_name, :name_source, :source_dataset, :source_feature_id,
+                      :name_confidence, :name_status,
                       :base_time_s, :slope_time_s, :traffic_safety_score,
                       :barrier_penalty, :uncertainty_penalty
                     )

@@ -4,6 +4,7 @@ from typing import Any
 
 from pyproj import Geod, Transformer
 
+from app.core.edge_naming import assign_edge_display_names
 from app.core.grade import aggregate_edge_grade_metrics, reverse_samples
 from app.core.models import Edge, ElevationSample, Graph, Node
 from app.core.smoothing import smooth_elevation_profile
@@ -208,4 +209,4 @@ def build_directed_graph(
         )
         next_edge_id += 1
 
-    return Graph(nodes=nodes, edges=edges, version=graph_version)
+    return assign_edge_display_names(Graph(nodes=nodes, edges=edges, version=graph_version))

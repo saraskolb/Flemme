@@ -65,6 +65,12 @@ class Edge:
     uncertainty_penalty: float = 0.0
     osm_way_id: int | None = None
     source_tags: dict[str, str] = field(default_factory=dict)
+    display_name: str | None = None
+    name_source: str = "unknown"
+    source_dataset: str | None = None
+    source_feature_id: str | None = None
+    name_confidence: float = 0.0
+    name_status: str = "unknown"
 
 
 @dataclass(slots=True)

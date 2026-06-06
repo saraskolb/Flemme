@@ -3,17 +3,19 @@ from __future__ import annotations
 from math import atan2, cos, degrees, radians
 
 from app.core.costs import edge_time_s
+from app.core.edge_naming import edge_label
 from app.core.models import Coordinate, DirectionStep, Edge, UserPrefs
 
+SHORT_CROSSING_GROUP_M = 18.0
 
-def _display_name(edge: Edge) -> str:
-    if edge.street_name:
-        return edge.street_name
-    if edge.edge_type in {"footway", "path", "pedestrian", "crossing"}:
-        return "pedestrian path"
-    if edge.edge_type == "steps":
-        return "stairs"
-    return edge.edge_type.replace("_", " ")
+
+def _direction_key(edge: Edge) -> str:
+    label = edge_label(edge)
+    if label.text:
+        return f"name:{label.text}"
+    if label.kind == "connector":
+        return "connector:generic"
+    return label.key
 
 
 def _compass_from_bearing(bearing_deg: float) -> str:
@@ -66,6 +68,37 @@ def _merge_geometry(edges: list[Edge]) -> list[Coordinate]:
     return geometry
 
 
+def _group_label_text(group: list[Edge]) -> str | None:
+    return edge_label(group[0]).text
+
+
+def _group_distance_m(group: list[Edge]) -> float:
+    return sum(edge.length_m for edge in group)
+
+
+def _absorb_short_cross_street_groups(groups: list[list[Edge]]) -> list[list[Edge]]:
+    simplified = [list(group) for group in groups]
+    index = 1
+    while index < len(simplified) - 1:
+        previous_name = _group_label_text(simplified[index - 1])
+        current_name = _group_label_text(simplified[index])
+        next_name = _group_label_text(simplified[index + 1])
+        is_short_crossing = _group_distance_m(simplified[index]) <= SHORT_CROSSING_GROUP_M
+        if (
+            previous_name
+            and previous_name == next_name
+            and current_name != previous_name
+            and is_short_crossing
+        ):
+            simplified[index - 1].extend(simplified[index])
+            simplified[index - 1].extend(simplified[index + 1])
+            del simplified[index : index + 2]
+            index = max(1, index - 1)
+            continue
+        index += 1
+    return simplified
+
+
 def _step_from_edges(
     edges: list[Edge],
     prefs: UserPrefs,
@@ -75,10 +108,7 @@ def _step_from_edges(
 ) -> tuple[DirectionStep, float]:
     geometry = _merge_geometry(edges)
     bearing = _bearing(geometry)
-    name = _display_name(edges[0])
-    instruction_name = name
-    if name == "pedestrian path" and toward_name:
-        instruction_name = f"pedestrian path toward {toward_name}"
+    label = edge_label(edges[0])
     distance_m = sum(edge.length_m for edge in edges)
     time_s = sum(edge_time_s(edge, prefs) for edge in edges)
     gain_m = sum(edge.gain_m for edge in edges)
@@ -90,11 +120,23 @@ def _step_from_edges(
     hill_note = ""
     if max_uphill_grade >= 0.06:
         hill_note = f"; uphill up to {round(max_uphill_grade * 100):.0f}%"
-    instruction = f"{prefix} {instruction_name} for {format_distance(distance_m)}{hill_note}."
+    if label.kind == "connector" and not label.text:
+        if toward_name:
+            prefix = f"Walk {_compass_from_bearing(bearing)} toward" if is_first else (
+                f"{_turn_instruction(previous_bearing or bearing, bearing)} toward"
+            )
+            instruction = f"{prefix} {toward_name} for {format_distance(distance_m)}{hill_note}."
+        else:
+            prefix = f"Walk {_compass_from_bearing(bearing)}" if is_first else (
+                _turn_instruction(previous_bearing or bearing, bearing)
+            )
+            instruction = f"{prefix} for {format_distance(distance_m)}{hill_note}."
+    else:
+        instruction = f"{prefix} {label.text} for {format_distance(distance_m)}{hill_note}."
     return (
         DirectionStep(
             instruction=instruction,
-            street_name=name,
+            street_name=toward_name if label.kind == "connector" and toward_name else label.text,
             distance_m=distance_m,
             time_s=time_s,
             gain_m=gain_m,
@@ -119,22 +161,29 @@ def build_directions(route_edges: list[Edge], prefs: UserPrefs) -> list[Directio
 
     groups: list[list[Edge]] = []
     for edge in route_edges:
-        key = _display_name(edge)
-        if groups and _display_name(groups[-1][-1]) == key:
+        key = _direction_key(edge)
+        if groups and _direction_key(groups[-1][-1]) == key:
             groups[-1].append(edge)
         else:
             groups.append([edge])
+    groups = _absorb_short_cross_street_groups(groups)
 
     steps: list[DirectionStep] = []
     previous_bearing: float | None = None
     for index, group in enumerate(groups):
         toward_name = None
-        if _display_name(group[0]) == "pedestrian path":
+        if edge_label(group[0]).kind == "connector":
             for later_group in groups[index + 1 :]:
-                later_name = _display_name(later_group[0])
-                if later_name != "pedestrian path":
-                    toward_name = later_name
+                later_label = edge_label(later_group[0])
+                if later_label.kind != "connector" and later_label.text:
+                    toward_name = later_label.text
                     break
+            if not toward_name:
+                for edge in reversed(group):
+                    label = edge_label(edge)
+                    if label.text:
+                        toward_name = label.text
+                        break
         step, previous_bearing = _step_from_edges(
             group,
             prefs,

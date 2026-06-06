@@ -20,6 +20,12 @@ def test_route_to_geojson_includes_route_and_edge_debug_features() -> None:
                 geometry=[(-122.0, 37.0), (-121.999, 37.0)],
                 length_m=88.0,
                 street_name="Page Street",
+                display_name="Page Street",
+                name_source="datasf_centerline",
+                source_dataset="datasf_streets_active_retired",
+                source_feature_id="12345",
+                name_confidence=0.95,
+                name_status="official_street_name",
                 max_uphill_grade=0.07,
                 base_time_s=66.0,
                 osm_way_id=123,
@@ -38,5 +44,10 @@ def test_route_to_geojson_includes_route_and_edge_debug_features() -> None:
     assert edge_feature["properties"]["edge_id"] == 10
     assert edge_feature["properties"]["osm_way_id"] == 123
     assert edge_feature["properties"]["source_tags"]["highway"] == "residential"
+    assert edge_feature["properties"]["display_name"] == "Page Street"
+    assert edge_feature["properties"]["name_source"] == "datasf_centerline"
+    assert edge_feature["properties"]["source_dataset"] == "datasf_streets_active_retired"
+    assert edge_feature["properties"]["source_feature_id"] == "12345"
+    assert edge_feature["properties"]["name_status"] == "official_street_name"
     assert collection["features"][2]["properties"]["role"] == "origin"
     assert collection["features"][3]["properties"]["role"] == "destination"

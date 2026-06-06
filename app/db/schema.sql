@@ -40,6 +40,12 @@ CREATE TABLE walk_edges (
   access TEXT DEFAULT 'unknown',
   osm_way_id BIGINT,
   source_tags JSONB DEFAULT '{}'::jsonb,
+  display_name TEXT,
+  name_source TEXT DEFAULT 'unknown',
+  source_dataset TEXT,
+  source_feature_id TEXT,
+  name_confidence DOUBLE PRECISION DEFAULT 0,
+  name_status TEXT DEFAULT 'unknown',
   base_time_s DOUBLE PRECISION NOT NULL,
   slope_time_s DOUBLE PRECISION NOT NULL,
   traffic_safety_score DOUBLE PRECISION DEFAULT 0,
@@ -67,3 +73,10 @@ CREATE INDEX walk_nodes_geom_gix ON walk_nodes USING gist (geom);
 CREATE INDEX walk_edges_geom_gix ON walk_edges USING gist (geom);
 CREATE INDEX walk_edges_source_idx ON walk_edges (source_node);
 CREATE INDEX walk_edges_target_idx ON walk_edges (target_node);
+
+ALTER TABLE walk_edges ADD COLUMN IF NOT EXISTS display_name TEXT;
+ALTER TABLE walk_edges ADD COLUMN IF NOT EXISTS name_source TEXT DEFAULT 'unknown';
+ALTER TABLE walk_edges ADD COLUMN IF NOT EXISTS source_dataset TEXT;
+ALTER TABLE walk_edges ADD COLUMN IF NOT EXISTS source_feature_id TEXT;
+ALTER TABLE walk_edges ADD COLUMN IF NOT EXISTS name_confidence DOUBLE PRECISION DEFAULT 0;
+ALTER TABLE walk_edges ADD COLUMN IF NOT EXISTS name_status TEXT DEFAULT 'unknown';

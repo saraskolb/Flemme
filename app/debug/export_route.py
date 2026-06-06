@@ -7,10 +7,12 @@ from typing import Any, Literal, cast
 
 from app.api.schemas import PreferencesIn, preferences_to_user_prefs
 from app.core.alternatives import generate_route_candidates
+from app.core.edge_naming import apply_official_street_names
 from app.core.geojson import route_to_geojson
 from app.core.models import Graph, RouteOption
 from app.core.snapping import snap_point_to_graph
 from app.db.repositories import JSONGraphRepository
+from app.ingest.datasf_import import load_datasf_street_centerlines
 
 ROUTE_COLORS = {
     "recommended": "#2563eb",
@@ -41,6 +43,8 @@ def _parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--geojson-output", type=Path, required=True)
     parser.add_argument("--html-output", type=Path)
+    parser.add_argument("--street-centerlines-geojson", type=Path)
+    parser.add_argument("--street-name-match-distance-m", type=float, default=28.0)
     return parser.parse_args()
 
 
@@ -217,8 +221,16 @@ def export_route_debug_map(
     route_label: str,
     geojson_output: Path,
     html_output: Path | None = None,
+    street_centerlines_geojson: Path | None = None,
+    street_name_match_distance_m: float = 28.0,
 ) -> list[RouteOption]:
     graph = JSONGraphRepository(graph_path).load_graph()
+    if street_centerlines_geojson is not None:
+        apply_official_street_names(
+            graph,
+            load_datasf_street_centerlines(street_centerlines_geojson),
+            max_distance_m=street_name_match_distance_m,
+        )
     start_node = snap_point_to_graph(graph, lat=origin_lat, lon=origin_lon)
     goal_node = snap_point_to_graph(graph, lat=destination_lat, lon=destination_lon)
     if start_node is None or goal_node is None:
@@ -254,6 +266,8 @@ def main() -> None:
         route_label=args.route_label,
         geojson_output=args.geojson_output,
         html_output=args.html_output,
+        street_centerlines_geojson=args.street_centerlines_geojson,
+        street_name_match_distance_m=args.street_name_match_distance_m,
     )
     for route in routes:
         print(

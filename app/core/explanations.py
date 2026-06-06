@@ -26,7 +26,7 @@ def _event_from_edge(edge: Edge, start_dist_m: float, direction: str, grade: flo
         length_above_10 = edge.length_m if grade >= 0.10 else 0.0
 
     return HillEvent(
-        street_name=edge.street_name,
+        street_name=edge.display_name or edge.street_name,
         start_dist_m=start_dist_m,
         end_dist_m=start_dist_m + edge.length_m,
         length_m=edge.length_m,

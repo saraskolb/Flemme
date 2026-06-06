@@ -8,8 +8,9 @@ PostGIS schema.
 
 The real-data path can now load a bounded San Francisco walking graph from OSM
 via Overpass, enrich it with batch Open-Meteo elevations or slower USGS EPQS
-elevations, and route against a graph JSON cache. DataSF joins, local DEM raster
-processing, and Google validation adapters are still future work.
+elevations, match edges to official DataSF street centerline names, and route
+against a graph JSON cache. Local DEM raster processing and Google validation
+adapters are still future work.
 
 ## What Works Now
 
@@ -26,7 +27,8 @@ processing, and Google validation adapters are still future work.
 - PostGIS schema and initial Alembic migration
 - Real OSM/Overpass graph loading to JSON, plus optional PostGIS writes
 - File-backed `/route` via `GRAPH_JSON_PATH`
-- Clean stubs for DataSF and Google validation adapters
+- DataSF street centerline edge naming, with clean stubs for remaining DataSF
+  pedestrian-quality joins and Google validation adapters
 
 ## Project Layout
 
@@ -109,6 +111,7 @@ python -m app.ingest.load_sf_graph \
   --east -122.4326 \
   --elevation-provider open-meteo \
   --sample-spacing-m 500 \
+  --download-street-centerlines \
   --output data/graphs/page_duboce_walk_graph.json
 ```
 
@@ -123,7 +126,16 @@ Optionally write the same graph to PostGIS:
 python -m app.ingest.load_sf_graph \
   --preset page-duboce \
   --elevation-provider open-meteo \
+  --street-centerlines-geojson data/cache/datasf_streets_active_retired.geojson \
   --database-url "$DATABASE_URL"
+```
+
+Apply official street names to an existing graph cache:
+
+```bash
+python -m app.ingest.name_graph_edges \
+  --graph data/graphs/page_duboce_walk_graph.json \
+  --download-street-centerlines
 ```
 
 ## Debug The Graph On A Map
@@ -133,6 +145,7 @@ Export a route as GeoJSON plus a local Leaflet preview:
 ```bash
 python -m app.debug.export_route \
   --graph data/graphs/page_duboce_walk_graph.json \
+  --street-centerlines-geojson data/cache/datasf_streets_active_retired.geojson \
   --origin-lat 37.7714654 \
   --origin-lon -122.4412496 \
   --destination-lat 37.76919 \
@@ -147,6 +160,22 @@ Open `data/debug/page_duboce_routes.html` in a browser. Every route segment is
 clickable and shows edge ID, OSM way ID when available, street/path type,
 source tags, grade, and distance. This is the first tool to use when a route
 looks geographically suspicious.
+
+## Edge Naming Policy
+
+Flemme keeps raw OSM names and user-facing names separate. `street_name` is the
+name OSM actually supplied. `display_name` is the name Flemme shows for an edge.
+Production SF graph builds should match every street, sidewalk, and crossing
+edge against the official DataSF Streets - Active and Retired centerline layer.
+Matched edges store `source_dataset`, `source_feature_id`, `name_confidence`,
+and `name_status`, so instructions like `Turn left onto Page Street` trace back
+to a civic centerline record.
+
+OSM names and graph-topology inference are fallbacks for edges that cannot be
+matched. Generic labels should remain only for true paths, stairs, park walks,
+alleys, and genuinely unnamed ways. `name_source` records whether a label came
+from DataSF, OSM, adjacency inference, or a generic fallback so suspicious names
+can be audited on the debug map.
 
 ## Architecture Notes
 
@@ -164,7 +193,8 @@ The core flow is:
 
 ## Known Limitations
 
-- DataSF sidewalk/safety joins are stubbed.
+- DataSF street centerline naming is implemented; sidewalk/safety joins are
+  still stubbed.
 - `/route` can load graph JSON; PostGIS loading is implemented but unverified
   locally because Docker/PostGIS is not available in this environment.
 - Open-Meteo elevation is coarse for sidewalk-grade decisions; use USGS EPQS or

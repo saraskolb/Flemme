@@ -4,7 +4,13 @@ import argparse
 import os
 from pathlib import Path
 
+from app.core.edge_naming import apply_official_street_names
 from app.db.repositories import save_graph_json, save_graph_to_postgis
+from app.ingest.datasf_import import (
+    DATASF_STREETS_GEOJSON_URL,
+    download_datasf_street_centerlines,
+    load_datasf_street_centerlines,
+)
 from app.ingest.elevation import (
     ElevationProvider,
     FlatElevationProvider,
@@ -65,6 +71,22 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--sample-spacing-m", type=float, default=20.0)
     parser.add_argument("--max-segments", type=int)
     parser.add_argument(
+        "--street-centerlines-geojson",
+        type=Path,
+        help="Optional DataSF Streets - Active and Retired GeoJSON for official edge names.",
+    )
+    parser.add_argument(
+        "--download-street-centerlines",
+        action="store_true",
+        help="Download DataSF street centerlines before naming graph edges.",
+    )
+    parser.add_argument(
+        "--street-centerlines-url",
+        default=DATASF_STREETS_GEOJSON_URL,
+        help="DataSF street centerlines GeoJSON endpoint.",
+    )
+    parser.add_argument("--street-name-match-distance-m", type=float, default=28.0)
+    parser.add_argument(
         "--database-url",
         default=os.getenv("DATABASE_URL"),
         help="Optional PostGIS URL. If set, the graph is written to PostGIS too.",
@@ -118,6 +140,22 @@ def main() -> None:
         graph_version=args.graph_version,
         sample_spacing_m=args.sample_spacing_m,
     )
+    street_centerlines_path = args.street_centerlines_geojson
+    if args.download_street_centerlines:
+        street_centerlines_path = street_centerlines_path or Path(
+            "data/cache/datasf_streets_active_retired.geojson"
+        )
+        download_datasf_street_centerlines(
+            street_centerlines_path,
+            url=args.street_centerlines_url,
+        )
+    if street_centerlines_path is not None:
+        centerlines = load_datasf_street_centerlines(street_centerlines_path)
+        apply_official_street_names(
+            graph,
+            centerlines,
+            max_distance_m=args.street_name_match_distance_m,
+        )
     save_graph_json(graph, args.output)
 
     if args.database_url:
