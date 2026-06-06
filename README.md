@@ -6,9 +6,10 @@ models, grade processing, route scoring, A* search, route alternatives,
 explanations, a synthetic San Francisco hill fixture, FastAPI endpoints, and a
 PostGIS schema.
 
-The production graph ingestion pipeline is intentionally stubbed. Live OSM,
-DEM, DataSF, and Google integrations come after the synthetic graph proves the
-routing behavior.
+The real-data path can now load a bounded San Francisco walking graph from OSM
+via Overpass, enrich it with batch Open-Meteo elevations or slower USGS EPQS
+elevations, and route against a graph JSON cache. DataSF joins, local DEM raster
+processing, and Google validation adapters are still future work.
 
 ## What Works Now
 
@@ -23,7 +24,9 @@ routing behavior.
 - Route candidates and recommended route explanations
 - FastAPI health and development synthetic-route endpoints
 - PostGIS schema and initial Alembic migration
-- Clean stubs for OSM, DataSF, DEM, Google, and PostGIS graph loading
+- Real OSM/Overpass graph loading to JSON, plus optional PostGIS writes
+- File-backed `/route` via `GRAPH_JSON_PATH`
+- Clean stubs for DataSF and Google validation adapters
 
 ## Project Layout
 
@@ -70,6 +73,12 @@ Or run the API locally after installing dependencies:
 uvicorn app.main:app --reload
 ```
 
+To route against a loaded real graph JSON:
+
+```bash
+GRAPH_JSON_PATH=data/graphs/page_duboce_walk_graph.json uvicorn app.main:app --reload
+```
+
 Health check:
 
 ```bash
@@ -84,14 +93,43 @@ curl -X POST http://localhost:8000/debug/route-on-synthetic-graph \
   -d '{"preferences":{"mode":"balanced"}}'
 ```
 
-`POST /route` is shaped for the future production PostGIS graph path. In this
-first slice it returns a clear not-implemented response until real graph loading
-is wired. Use `/debug/route-on-synthetic-graph` for the working route demo.
+`POST /route` uses `GRAPH_JSON_PATH` when set. Without a graph JSON cache it
+tries the PostGIS graph repository and returns a clear 501 if PostGIS is not
+loaded yet.
+
+## Load Real SF Data
+
+Load the Page Street to Duboce/Noe validation corridor:
+
+```bash
+python -m app.ingest.load_sf_graph \
+  --south 37.7687 \
+  --west -122.4422 \
+  --north 37.7732 \
+  --east -122.4326 \
+  --elevation-provider open-meteo \
+  --sample-spacing-m 500 \
+  --output data/graphs/page_duboce_walk_graph.json
+```
+
+Open-Meteo is the fast bootstrap provider and supports batch coordinate
+requests. USGS EPQS is available with `--elevation-provider usgs`; it is more
+appropriate for high-resolution validation but is slower because it queries one
+point at a time. Production city-wide loading should use a local DEM raster.
+
+Optionally write the same graph to PostGIS:
+
+```bash
+python -m app.ingest.load_sf_graph \
+  --preset page-duboce \
+  --elevation-provider open-meteo \
+  --database-url "$DATABASE_URL"
+```
 
 ## Architecture Notes
 
-The routing core does not call Google Maps. Google adapters are stubs reserved
-for geocoding, basemaps, route display, and later external validation. Flemme's
+The routing core does not call Google Maps. Google adapters are reserved for
+geocoding, basemaps, route display, and later external validation. Flemme's
 hill-aware route optimization remains custom.
 
 The core flow is:
@@ -104,17 +142,20 @@ The core flow is:
 
 ## Known Limitations
 
-- Production OSM/DEM/DataSF ingestion is stubbed.
-- `/route` does not yet load from PostGIS.
+- DataSF sidewalk/safety joins are stubbed.
+- `/route` can load graph JSON; PostGIS loading is implemented but unverified
+  locally because Docker/PostGIS is not available in this environment.
+- Open-Meteo elevation is coarse for sidewalk-grade decisions; use USGS EPQS or
+  local DEM raster sampling for higher-resolution validation.
 - Snapping is a simple nearest-node helper for fixture/development use.
 - No contraction hierarchies, live traffic, mobile UI, or full Pareto label
   routing yet.
 
 ## Next Steps
 
-1. Build cached OSM pedestrian graph ingestion for San Francisco.
-2. Add DEM sampling and confidence metadata.
+1. Replace bootstrap Open-Meteo elevations with local DEM raster sampling.
+2. Add address geocoding and a Google Maps validation harness.
 3. Join DataSF sidewalk, curb-ramp, and safety datasets.
-4. Persist graph snapshots to PostGIS and load them behind `/route`.
-5. Use Google Maps APIs for geocoding, map display, and validation baselines.
-6. Add bounded Pareto route search once fixture and PostGIS tests are stable.
+4. Verify PostGIS loading with Docker/PostGIS.
+5. Expand from route-corridor loads to full San Francisco graph snapshots.
+6. Add bounded Pareto route search once real-data tests are stable.

@@ -2,17 +2,24 @@ from __future__ import annotations
 
 from typing import Any
 
+from app.core.models import Graph
+from app.ingest.elevation import ElevationProvider
+from app.ingest.graph_builder import build_directed_graph
 
-def preprocess_raw_segments(raw_segments: list[dict[str, Any]]) -> list[dict[str, Any]]:
+
+def preprocess_raw_segments(
+    raw_segments: list[dict[str, Any]],
+    elevation_provider: ElevationProvider | None = None,
+    graph_version: str = "sf-osm-dev",
+) -> Graph:
     """Prepare raw pedestrian segments for routing.
 
-    TODO:
-    - Densify geometries to 2-5 m spacing.
-    - Sample DEM elevation.
-    - Smooth elevation profiles.
-    - Compute grade metrics.
-    - Split steep or attribute-changing segments.
-    - Create directed edges and precompute profile costs.
-    - Persist results to PostGIS.
+    This first real-data slice turns OSM node-pair segments into directed edges
+    and computes elevation/grade metrics. Full sidewalk and safety joins come
+    in the DataSF slice.
     """
-    raise NotImplementedError("Preprocessing is intentionally stubbed in the first slice.")
+    return build_directed_graph(
+        raw_segments,
+        elevation_provider=elevation_provider,
+        graph_version=graph_version,
+    )

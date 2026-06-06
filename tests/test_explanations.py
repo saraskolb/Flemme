@@ -79,3 +79,31 @@ def test_recommended_route_explanation_mentions_tradeoff_and_avoided_grade() -> 
 
     assert "1 minute slower" in explanation
     assert "12%" in explanation
+
+
+def test_sub_minute_tradeoff_does_not_say_zero_minutes() -> None:
+    nodes = {
+        1: Node(1, lon=0.0, lat=0.0, x=0.0, y=0.0),
+        2: Node(2, lon=1.0, lat=0.0, x=1.0, y=0.0),
+        3: Node(3, lon=2.0, lat=0.0, x=2.0, y=0.0),
+    }
+    steep = _steep_edge(1, 1, 2, length_m=60.0)
+    gentle = Edge(
+        edge_id=2,
+        source=1,
+        target=3,
+        geometry=[(0.0, 0.0), (2.0, 0.0)],
+        length_m=70.0,
+        max_uphill_grade=0.06,
+        max_abs_grade=0.06,
+        sustained_uphill_grade_20m=0.06,
+        base_time_s=89.0,
+    )
+    graph = Graph(nodes=nodes, edges={1: steep, 2: gentle})
+    fastest = build_route_option(graph, [1], "fastest", FASTEST)
+    recommended = build_route_option(graph, [2], "recommended", BALANCED)
+
+    explanation = explain_route(recommended, fastest, BALANCED)
+
+    assert "less than 1 minute slower" in explanation
+    assert "0 minutes" not in explanation

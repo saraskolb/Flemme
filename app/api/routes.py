@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from fastapi import APIRouter, HTTPException, status
 
 from app.api.schemas import (
@@ -13,25 +15,40 @@ from app.api.schemas import (
 from app.config import get_settings
 from app.core.alternatives import generate_route_candidates
 from app.core.snapping import snap_point_to_graph
-from app.db.repositories import GraphUnavailable, PostGISGraphRepository, SyntheticGraphRepository
+from app.db.repositories import (
+    GraphRepository,
+    GraphUnavailable,
+    JSONGraphRepository,
+    PostGISGraphRepository,
+    SyntheticGraphRepository,
+)
 
 router = APIRouter()
+
+
+def _production_repository() -> GraphRepository:
+    settings = get_settings()
+    if settings.graph_json_path:
+        return JSONGraphRepository(Path(settings.graph_json_path))
+    return PostGISGraphRepository(settings.database_url)
 
 
 @router.get("/health", response_model=HealthResponse)
 def health() -> HealthResponse:
     settings = get_settings()
+    production_graph_loaded = (
+        Path(settings.graph_json_path).exists() if settings.graph_json_path else False
+    )
     return HealthResponse(
         status="ok",
         graph_version=settings.graph_version,
-        production_graph_loaded=False,
+        production_graph_loaded=production_graph_loaded,
     )
 
 
 @router.post("/route", response_model=RouteResponse)
 def route(request: RouteRequest) -> RouteResponse:
-    settings = get_settings()
-    repository = PostGISGraphRepository(settings.database_url)
+    repository = _production_repository()
     try:
         graph = repository.load_graph()
     except GraphUnavailable as exc:
