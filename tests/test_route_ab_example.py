@@ -55,4 +55,4 @@ def test_production_route_endpoint_is_future_shaped_not_synthetic() -> None:
     )
 
     assert response.status_code == 501
-    assert "Production PostGIS graph loading is not implemented yet" in response.json()["detail"]
+    assert "Set GRAPH_JSON_PATH" in response.json()["detail"]

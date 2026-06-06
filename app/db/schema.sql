@@ -26,6 +26,8 @@ CREATE TABLE walk_edges (
   max_abs_grade DOUBLE PRECISION DEFAULT 0,
   sustained_uphill_grade_20m DOUBLE PRECISION DEFAULT 0,
   sustained_downhill_grade_20m DOUBLE PRECISION DEFAULT 0,
+  sustained_uphill_grade_50m DOUBLE PRECISION DEFAULT 0,
+  sustained_downhill_grade_50m DOUBLE PRECISION DEFAULT 0,
   length_above_6pct_up_m DOUBLE PRECISION DEFAULT 0,
   length_above_8pct_up_m DOUBLE PRECISION DEFAULT 0,
   length_above_10pct_up_m DOUBLE PRECISION DEFAULT 0,
