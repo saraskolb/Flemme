@@ -77,6 +77,8 @@ def _edge_attrs(raw_segment: dict[str, Any]) -> dict[str, Any]:
         "wheelchair_access": tags.get("wheelchair"),
         "stairs": highway == "steps",
         "surface": tags.get("surface"),
+        "osm_way_id": raw_segment.get("osm_way_id"),
+        "source_tags": {str(key): str(value) for key, value in tags.items()},
     }
 
 
@@ -107,6 +109,8 @@ def _edge_from_samples(
         wheelchair_access=attrs["wheelchair_access"],
         stairs=attrs["stairs"],
         surface=attrs["surface"],
+        osm_way_id=attrs["osm_way_id"],
+        source_tags=attrs["source_tags"],
         gain_m=metrics["gain_m"],
         loss_m=metrics["loss_m"],
         mean_grade=metrics["mean_grade"],

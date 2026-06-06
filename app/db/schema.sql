@@ -38,6 +38,8 @@ CREATE TABLE walk_edges (
   stairs BOOLEAN DEFAULT FALSE,
   surface TEXT,
   access TEXT DEFAULT 'unknown',
+  osm_way_id BIGINT,
+  source_tags JSONB DEFAULT '{}'::jsonb,
   base_time_s DOUBLE PRECISION NOT NULL,
   slope_time_s DOUBLE PRECISION NOT NULL,
   traffic_safety_score DOUBLE PRECISION DEFAULT 0,

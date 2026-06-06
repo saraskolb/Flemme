@@ -63,6 +63,8 @@ class Edge:
     traffic_safety_score: float = 0.0
     barrier_penalty: float = 0.0
     uncertainty_penalty: float = 0.0
+    osm_way_id: int | None = None
+    source_tags: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass(slots=True)

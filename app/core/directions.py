@@ -71,10 +71,14 @@ def _step_from_edges(
     prefs: UserPrefs,
     previous_bearing: float | None,
     is_first: bool,
+    toward_name: str | None = None,
 ) -> tuple[DirectionStep, float]:
     geometry = _merge_geometry(edges)
     bearing = _bearing(geometry)
     name = _display_name(edges[0])
+    instruction_name = name
+    if name == "pedestrian path" and toward_name:
+        instruction_name = f"pedestrian path toward {toward_name}"
     distance_m = sum(edge.length_m for edge in edges)
     time_s = sum(edge_time_s(edge, prefs) for edge in edges)
     gain_m = sum(edge.gain_m for edge in edges)
@@ -86,7 +90,7 @@ def _step_from_edges(
     hill_note = ""
     if max_uphill_grade >= 0.06:
         hill_note = f"; uphill up to {round(max_uphill_grade * 100):.0f}%"
-    instruction = f"{prefix} {name} for {format_distance(distance_m)}{hill_note}."
+    instruction = f"{prefix} {instruction_name} for {format_distance(distance_m)}{hill_note}."
     return (
         DirectionStep(
             instruction=instruction,
@@ -124,11 +128,19 @@ def build_directions(route_edges: list[Edge], prefs: UserPrefs) -> list[Directio
     steps: list[DirectionStep] = []
     previous_bearing: float | None = None
     for index, group in enumerate(groups):
+        toward_name = None
+        if _display_name(group[0]) == "pedestrian path":
+            for later_group in groups[index + 1 :]:
+                later_name = _display_name(later_group[0])
+                if later_name != "pedestrian path":
+                    toward_name = later_name
+                    break
         step, previous_bearing = _step_from_edges(
             group,
             prefs,
             previous_bearing,
             is_first=index == 0,
+            toward_name=toward_name,
         )
         steps.append(step)
     return steps

@@ -197,6 +197,8 @@ class PostGISGraphRepository:
                           stairs,
                           surface,
                           access,
+                          osm_way_id,
+                          COALESCE(source_tags, '{}'::jsonb) AS source_tags,
                           base_time_s,
                           slope_time_s,
                           traffic_safety_score,
@@ -231,6 +233,10 @@ class PostGISGraphRepository:
                         wheelchair_access=row["wheelchair_access"],
                         stairs=bool(row["stairs"]),
                         surface=row["surface"],
+                        osm_way_id=int(row["osm_way_id"])
+                        if row["osm_way_id"] is not None
+                        else None,
+                        source_tags=dict(row["source_tags"] or {}),
                         samples=samples_by_edge.get(edge_id, []),
                         gain_m=float(row["gain_m"] or 0.0),
                         loss_m=float(row["loss_m"] or 0.0),
@@ -327,7 +333,8 @@ def save_graph_to_postgis(graph: Graph, database_url: str, truncate: bool = True
                       length_above_6pct_up_m, length_above_8pct_up_m,
                       length_above_10pct_up_m, length_above_12pct_up_m,
                       sidewalk_availability, sidewalk_width_m, wheelchair_access,
-                      stairs, surface, access, base_time_s, slope_time_s,
+                      stairs, surface, access, osm_way_id, source_tags,
+                      base_time_s, slope_time_s,
                       traffic_safety_score, barrier_penalty, uncertainty_penalty
                     )
                     VALUES (
@@ -342,7 +349,8 @@ def save_graph_to_postgis(graph: Graph, database_url: str, truncate: bool = True
                       :length_above_8pct_up_m, :length_above_10pct_up_m,
                       :length_above_12pct_up_m, :sidewalk_availability,
                       :sidewalk_width_m, :wheelchair_access, :stairs, :surface,
-                      :access, :base_time_s, :slope_time_s, :traffic_safety_score,
+                      :access, :osm_way_id, CAST(:source_tags AS jsonb),
+                      :base_time_s, :slope_time_s, :traffic_safety_score,
                       :barrier_penalty, :uncertainty_penalty
                     )
                     ON CONFLICT (edge_id) DO NOTHING
@@ -350,6 +358,7 @@ def save_graph_to_postgis(graph: Graph, database_url: str, truncate: bool = True
                 ),
                 {
                     **asdict(edge),
+                    "source_tags": json.dumps(edge.source_tags),
                     "linestring_wkt": _linestring_wkt(edge.geometry),
                 },
             )

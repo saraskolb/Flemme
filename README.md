@@ -126,6 +126,28 @@ python -m app.ingest.load_sf_graph \
   --database-url "$DATABASE_URL"
 ```
 
+## Debug The Graph On A Map
+
+Export a route as GeoJSON plus a local Leaflet preview:
+
+```bash
+python -m app.debug.export_route \
+  --graph data/graphs/page_duboce_walk_graph.json \
+  --origin-lat 37.7714654 \
+  --origin-lon -122.4412496 \
+  --destination-lat 37.76919 \
+  --destination-lon -122.43357 \
+  --mode balanced \
+  --route-label all \
+  --geojson-output data/debug/page_duboce_routes.geojson \
+  --html-output data/debug/page_duboce_routes.html
+```
+
+Open `data/debug/page_duboce_routes.html` in a browser. Every route segment is
+clickable and shows edge ID, OSM way ID when available, street/path type,
+source tags, grade, and distance. This is the first tool to use when a route
+looks geographically suspicious.
+
 ## Architecture Notes
 
 The routing core does not call Google Maps. Google adapters are reserved for
