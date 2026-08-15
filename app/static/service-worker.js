@@ -1,4 +1,4 @@
-const CACHE_NAME = "flemme-shell-v11";
+const CACHE_NAME = "flemme-shell-v13";
 const SHELL_URLS = [
   "/",
   "/static/app.js",

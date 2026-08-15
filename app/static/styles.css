@@ -20,7 +20,7 @@
   --app-height: 100vh;
   --visible-height: 100vh;
   --keyboard-offset: 0px;
-  --editing-sheet-max-height: min(340px, calc(var(--visible-height) - 24px));
+  --sheet-offset: 0px;
 }
 
 * {
@@ -30,6 +30,7 @@
 html,
 body {
   height: 100%;
+  overscroll-behavior: none;
 }
 
 body {
@@ -219,17 +220,30 @@ h1 {
   margin: 0 auto;
   padding: 10px 14px 14px;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  scroll-padding: 14px 0 calc(18px + env(safe-area-inset-bottom));
   scrollbar-width: none;
+  touch-action: pan-y;
   -webkit-overflow-scrolling: touch;
   border: 1px solid rgb(215 222 229 / 0.9);
   border-radius: 18px;
   background: rgb(255 255 255 / 0.96);
   box-shadow: var(--shadow);
   backdrop-filter: blur(12px);
+  transform: translateY(var(--sheet-offset));
+  will-change: transform;
   transition:
     bottom 160ms ease,
     max-height 160ms ease,
     transform 160ms ease;
+}
+
+.query-panel.is-sheet-dragging {
+  transition: none;
+}
+
+.query-panel.is-sheet-collapsed {
+  overflow-y: hidden;
 }
 
 .query-panel::-webkit-scrollbar {
@@ -237,11 +251,33 @@ h1 {
 }
 
 .sheet-handle {
+  position: relative;
+  display: block;
   align-self: center;
+  width: 64px;
+  height: 24px;
+  min-height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  cursor: grab;
+  touch-action: none;
+}
+
+.sheet-handle:active {
+  cursor: grabbing;
+}
+
+.sheet-handle::before {
+  position: absolute;
+  top: 10px;
+  left: 11px;
   width: 42px;
   height: 4px;
   border-radius: 999px;
-  background: #c8d1d9;
+  background: #a8b3bd;
+  content: "";
 }
 
 .route-form,
@@ -620,8 +656,10 @@ h1 {
     bottom: calc(10px + env(safe-area-inset-bottom) + var(--keyboard-offset));
     left: 18px;
     width: auto;
-    max-height: min(66dvh, 560px);
+    max-height: min(calc(var(--visible-height) - 118px), 560px);
     padding: 9px 12px 12px;
+    background: rgb(255 255 255 / 0.98);
+    backdrop-filter: none;
   }
 
   .has-route .route-tabs {
@@ -662,10 +700,6 @@ h1 {
   .is-editing .top-bar {
     opacity: 0;
     transform: translateY(-8px);
-  }
-
-  .is-editing .query-panel {
-    max-height: var(--editing-sheet-max-height);
   }
 
   .input-action-row {

@@ -14,6 +14,8 @@ def test_frontend_shell_is_served() -> None:
     assert "<h1>flemme</h1>" in response.text
     assert 'content="#f9a8d4"' in response.text
     assert "origin-address" in response.text
+    assert "sheet-handle" in response.text
+    assert "Collapse directions panel" in response.text
     assert "manifest.webmanifest" in response.text
     assert "locate-button" in response.text
     assert "use-location-button" in response.text
@@ -36,6 +38,12 @@ def test_frontend_assets_are_served() -> None:
     assert "/feedback" in response.text
     assert "useCurrentLocationForStart" in response.text
     assert "installViewportGuards" in response.text
+    assert "keepActiveFieldVisible" in response.text
+    assert "resetQueryPanelScroll" in response.text
+    assert "installSheetControls" in response.text
+    assert "collapseSheet" in response.text
+    assert "refreshMapAfterSheetChange" in response.text
+    assert "SHEET_COLLAPSED_VISIBLE_HEIGHT" in response.text
     assert "invalidateSize" in response.text
     assert "basemaps.cartocdn.com" in response.text
     assert "routePolylineLayers" in response.text
@@ -55,7 +63,7 @@ def test_frontend_pwa_assets_are_served() -> None:
     assert manifest.json()["display"] == "standalone"
     assert manifest.json()["theme_color"] == "#f9a8d4"
     assert worker.status_code == 200
-    assert "flemme-shell-v11" in worker.text
+    assert "flemme-shell-v13" in worker.text
     assert styles.status_code == 200
     assert "--brand: #f9a8d4" in styles.text
     assert 'font-family: "Snell Roundhand"' in styles.text
@@ -63,9 +71,18 @@ def test_frontend_pwa_assets_are_served() -> None:
     assert "rgb(31 41 55 / 0.28)" in styles.text
     assert "border-radius: 18px" in styles.text
     assert "--keyboard-offset" in styles.text
+    assert "--sheet-offset" in styles.text
+    assert "--editing-sheet-max-height" not in styles.text
+    assert "overscroll-behavior: contain" in styles.text
+    assert "touch-action: pan-y" in styles.text
+    assert "touch-action: none" in styles.text
+    assert "translateY(var(--sheet-offset))" in styles.text
+    assert ".query-panel.is-sheet-collapsed" in styles.text
+    assert ".query-panel.is-sheet-dragging" in styles.text
+    assert "calc(var(--visible-height) - 118px)" in styles.text
+    assert "backdrop-filter: none" in styles.text
     assert "top: 12px" in styles.text
     assert "--mobile-top-safe-space" not in styles.text
-    assert ".is-editing .query-panel" in styles.text
     assert ".clean-map-tiles" in styles.text
     assert ".route-tab-meta" in styles.text
     assert ".input-action-row input" in styles.text

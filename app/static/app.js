@@ -9,6 +9,8 @@ const mapEl = document.querySelector("#map");
 const healthPill = document.querySelector("#health-pill");
 const locateButton = document.querySelector("#locate-button");
 const useLocationButton = document.querySelector("#use-location-button");
+const queryPanel = document.querySelector(".query-panel");
+const sheetHandle = document.querySelector("#sheet-handle");
 const gpsStatusEl = document.querySelector("#gps-status");
 const feedbackNoteEl = document.querySelector("#feedback-note");
 const feedbackButtons = document.querySelectorAll("[data-feedback-type]");
@@ -23,6 +25,11 @@ let leafletLayers = [];
 let stableViewportHeight = window.innerHeight;
 let lastViewportWidth = window.innerWidth;
 let viewportRefreshTimer = null;
+let sheetOffset = 0;
+let sheetDragState = null;
+let suppressNextSheetClick = false;
+
+const SHEET_COLLAPSED_VISIBLE_HEIGHT = 58;
 
 const ROUTE_COLORS = {
   recommended: "#1a73e8",
@@ -162,6 +169,7 @@ async function runRouteQuery() {
       `${routeResponse.routes.length} route${routeResponse.routes.length === 1 ? "" : "s"}`
     );
     renderRoutes();
+    resetQueryPanelScroll();
   } catch (error) {
     routeResponse = null;
     lastRouteQuery = null;
@@ -490,8 +498,13 @@ function mapFitOptions() {
   }
 
   const visibleHeight = window.visualViewport?.height || window.innerHeight;
-  const bottomRatio = document.body.classList.contains("is-editing") ? 0.28 : 0.46;
-  const bottomLimit = document.body.classList.contains("is-editing") ? 190 : 360;
+  const sheetCollapsed = queryPanel?.classList.contains("is-sheet-collapsed");
+  const bottomRatio = sheetCollapsed
+    ? 0.14
+    : document.body.classList.contains("is-editing") ? 0.28 : 0.46;
+  const bottomLimit = sheetCollapsed
+    ? 110
+    : document.body.classList.contains("is-editing") ? 190 : 360;
   return {
     paddingTopLeft: [24, 112],
     paddingBottomRight: [24, Math.min(visibleHeight * bottomRatio, bottomLimit)],
@@ -510,6 +523,7 @@ function installViewportGuards() {
     }
     document.body.classList.add("is-editing");
     updateViewportState();
+    window.setTimeout(() => keepActiveFieldVisible(event.target), 80);
   });
 
   document.addEventListener("focusout", () => {
@@ -547,11 +561,206 @@ function updateViewportState() {
     `${Math.round(keyboardOffset > 80 ? keyboardOffset : 0)}px`
   );
   document.body.classList.toggle("is-editing", mobileEditing);
+  syncSheetOffset();
   refreshLeafletSize();
 }
 
 function isEditableTarget(target) {
   return Boolean(target?.matches?.("input, textarea, select"));
+}
+
+function keepActiveFieldVisible(target) {
+  if (!queryPanel || !isEditableTarget(target)) {
+    return;
+  }
+
+  const panelRect = queryPanel.getBoundingClientRect();
+  const targetRect = target.getBoundingClientRect();
+  const margin = 18;
+  if (targetRect.top < panelRect.top + margin) {
+    queryPanel.scrollBy({
+      top: targetRect.top - panelRect.top - margin,
+      behavior: "smooth",
+    });
+  } else if (targetRect.bottom > panelRect.bottom - margin) {
+    queryPanel.scrollBy({
+      top: targetRect.bottom - panelRect.bottom + margin,
+      behavior: "smooth",
+    });
+  }
+}
+
+function resetQueryPanelScroll() {
+  if (!queryPanel) {
+    return;
+  }
+  window.requestAnimationFrame(() => {
+    queryPanel.scrollTo({ top: 0, behavior: "smooth" });
+  });
+}
+
+function installSheetControls() {
+  if (!queryPanel || !sheetHandle) {
+    return;
+  }
+
+  sheetHandle.addEventListener("click", () => {
+    if (suppressNextSheetClick) {
+      suppressNextSheetClick = false;
+      return;
+    }
+    toggleSheet();
+  });
+  sheetHandle.addEventListener("pointerdown", startSheetDrag);
+  window.addEventListener("resize", syncSheetOffset);
+}
+
+function isMobileSheet() {
+  return window.matchMedia("(max-width: 520px)").matches;
+}
+
+function toggleSheet() {
+  if (!isMobileSheet()) {
+    return;
+  }
+
+  if (queryPanel.classList.contains("is-sheet-collapsed")) {
+    expandSheet();
+  } else {
+    collapseSheet();
+  }
+}
+
+function startSheetDrag(event) {
+  if (!isMobileSheet() || (event.button !== undefined && event.button !== 0)) {
+    return;
+  }
+
+  if (isEditableTarget(document.activeElement)) {
+    document.activeElement.blur();
+  }
+
+  event.preventDefault();
+  sheetHandle.setPointerCapture?.(event.pointerId);
+  sheetDragState = {
+    pointerId: event.pointerId,
+    startY: event.clientY,
+    lastY: event.clientY,
+    startOffset: sheetOffset,
+    moved: false,
+  };
+  queryPanel.classList.add("is-sheet-dragging");
+  window.addEventListener("pointermove", dragSheet);
+  window.addEventListener("pointerup", finishSheetDrag);
+  window.addEventListener("pointercancel", finishSheetDrag);
+}
+
+function dragSheet(event) {
+  if (!sheetDragState || event.pointerId !== sheetDragState.pointerId) {
+    return;
+  }
+
+  const deltaY = event.clientY - sheetDragState.startY;
+  sheetDragState.lastY = event.clientY;
+  sheetDragState.moved = sheetDragState.moved || Math.abs(deltaY) > 5;
+  setSheetOffset(sheetDragState.startOffset + deltaY);
+}
+
+function finishSheetDrag(event) {
+  if (!sheetDragState || event.pointerId !== sheetDragState.pointerId) {
+    return;
+  }
+
+  window.removeEventListener("pointermove", dragSheet);
+  window.removeEventListener("pointerup", finishSheetDrag);
+  window.removeEventListener("pointercancel", finishSheetDrag);
+  queryPanel.classList.remove("is-sheet-dragging");
+
+  const deltaY = sheetDragState.lastY - sheetDragState.startY;
+  const moved = sheetDragState.moved;
+  sheetDragState = null;
+  suppressNextSheetClick = moved;
+  if (moved) {
+    window.setTimeout(() => {
+      suppressNextSheetClick = false;
+    }, 350);
+  }
+
+  if (deltaY > 42 || sheetOffset > collapsedSheetOffset() * 0.45) {
+    collapseSheet();
+  } else {
+    expandSheet();
+  }
+}
+
+function collapseSheet() {
+  if (!queryPanel || !sheetHandle) {
+    return;
+  }
+
+  queryPanel.classList.add("is-sheet-collapsed");
+  sheetHandle.setAttribute("aria-expanded", "false");
+  sheetHandle.setAttribute("aria-label", "Expand directions panel");
+  setSheetOffset(collapsedSheetOffset());
+  refreshMapAfterSheetChange();
+}
+
+function expandSheet() {
+  if (!queryPanel || !sheetHandle) {
+    return;
+  }
+
+  queryPanel.classList.remove("is-sheet-collapsed");
+  sheetHandle.setAttribute("aria-expanded", "true");
+  sheetHandle.setAttribute("aria-label", "Collapse directions panel");
+  setSheetOffset(0);
+  refreshMapAfterSheetChange();
+}
+
+function syncSheetOffset() {
+  if (!queryPanel || sheetDragState) {
+    return;
+  }
+
+  if (!isMobileSheet()) {
+    queryPanel.classList.remove("is-sheet-collapsed");
+    setSheetOffset(0);
+    return;
+  }
+
+  if (queryPanel.classList.contains("is-sheet-collapsed")) {
+    setSheetOffset(collapsedSheetOffset());
+  } else {
+    setSheetOffset(0);
+  }
+}
+
+function setSheetOffset(offset) {
+  if (!queryPanel) {
+    return;
+  }
+
+  sheetOffset = Math.max(0, Math.min(offset, collapsedSheetOffset()));
+  document.documentElement.style.setProperty("--sheet-offset", `${Math.round(sheetOffset)}px`);
+}
+
+function collapsedSheetOffset() {
+  if (!queryPanel) {
+    return 0;
+  }
+
+  return Math.max(0, queryPanel.getBoundingClientRect().height - SHEET_COLLAPSED_VISIBLE_HEIGHT);
+}
+
+function refreshMapAfterSheetChange() {
+  if (routeResponse?.routes?.length) {
+    window.setTimeout(() => {
+      drawMap(routeResponse.routes, selectedRouteIndex);
+    }, 170);
+    return;
+  }
+
+  refreshLeafletSize();
 }
 
 function refreshLeafletSize() {
@@ -784,6 +993,7 @@ if ("serviceWorker" in navigator) {
 }
 
 installViewportGuards();
+installSheetControls();
 loadHealth();
 updateFeedbackState();
 drawEmptyMap("flemme");
