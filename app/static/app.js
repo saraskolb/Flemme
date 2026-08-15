@@ -358,7 +358,7 @@ function drawLeafletMap(map, routes, selectedIndex) {
   const selected = routes[selectedIndex];
   const selectedLatLngs = selected.geometry.map(([lon, lat]) => [lat, lon]);
   leafletLayers.push(L.polyline(selectedLatLngs, {
-    color: "#db4c40",
+    color: "#e85d24",
     opacity: 0.95,
     weight: 7,
   }).addTo(map));
@@ -368,7 +368,7 @@ function drawLeafletMap(map, routes, selectedIndex) {
   leafletLayers.push(L.circleMarker(start, {
     className: "leaflet-start-marker",
     color: "#ffffff",
-    fillColor: "#207568",
+    fillColor: "#f97316",
     fillOpacity: 1,
     radius: 8,
     weight: 3,
