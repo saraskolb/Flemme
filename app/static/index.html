@@ -16,22 +16,34 @@
   </head>
   <body>
     <main class="app-shell">
-      <section class="query-panel" aria-label="Route query">
-        <div class="brand-row">
-          <h1>Flemme</h1>
+      <header class="top-bar">
+        <h1>Flemme</h1>
+        <div class="top-status">
           <span id="health-pill" class="status-pill">Graph</span>
+          <span id="gps-status" class="gps-status">GPS idle</span>
         </div>
+      </header>
+
+      <section class="map-panel" aria-label="Route map">
+        <div id="map" class="route-map" role="img" aria-label="Route map"></div>
+      </section>
+
+      <section class="query-panel" aria-label="Route query">
+        <div class="sheet-handle" aria-hidden="true"></div>
 
         <form id="route-form" class="route-form">
           <div class="address-grid">
-            <label class="wide-field">
+            <label class="wide-field location-field">
               <span>Start</span>
-              <input
-                id="origin-address"
-                name="origin-address"
-                autocomplete="street-address"
-                placeholder="Start address or place"
-              />
+              <div class="input-action-row">
+                <input
+                  id="origin-address"
+                  name="origin-address"
+                  autocomplete="street-address"
+                  placeholder="Start address or place"
+                />
+                <button id="use-location-button" type="button">Use My Location</button>
+              </div>
             </label>
             <label class="wide-field">
               <span>Destination</span>
@@ -83,29 +95,31 @@
         <div id="message" class="message" role="status"></div>
         <div id="route-tabs" class="route-tabs" aria-label="Routes"></div>
         <div id="summary" class="summary"></div>
+        <section id="next-step" class="next-step" aria-label="Next step"></section>
         <section class="walk-tools" aria-label="Walk tools">
           <div class="walk-row">
             <button id="locate-button" type="button">Start GPS</button>
-            <span id="gps-status" class="gps-status">GPS idle</span>
           </div>
-          <label>
-            <span>Note</span>
-            <textarea id="feedback-note" rows="2" placeholder="Optional note"></textarea>
-          </label>
           <div class="feedback-grid" aria-label="Route feedback">
             <button type="button" data-feedback-type="good_route">Good</button>
-            <button type="button" data-feedback-type="weird_turn">Weird turn</button>
-            <button type="button" data-feedback-type="too_steep">Too steep</button>
+            <button type="button" data-feedback-type="weird_turn">Weird</button>
+            <button type="button" data-feedback-type="too_steep">Steep</button>
             <button type="button" data-feedback-type="unsafe">Unsafe</button>
-            <button type="button" data-feedback-type="bad_name">Bad name</button>
+            <button type="button" data-feedback-type="bad_name">Name</button>
             <button type="button" data-feedback-type="other">Other</button>
           </div>
+          <details class="note-details">
+            <summary>Add note</summary>
+            <label>
+              <span>Note</span>
+              <textarea id="feedback-note" rows="2" placeholder="Optional note"></textarea>
+            </label>
+          </details>
         </section>
-        <ol id="directions" class="directions"></ol>
-      </section>
-
-      <section class="map-panel" aria-label="Route map">
-        <div id="map" class="route-map" role="img" aria-label="Route map"></div>
+        <details class="steps-details">
+          <summary>All steps</summary>
+          <ol id="directions" class="directions"></ol>
+        </details>
       </section>
     </main>
 

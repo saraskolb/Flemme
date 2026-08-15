@@ -3,10 +3,12 @@ const routeButton = document.querySelector("#route-button");
 const messageEl = document.querySelector("#message");
 const tabsEl = document.querySelector("#route-tabs");
 const summaryEl = document.querySelector("#summary");
+const nextStepEl = document.querySelector("#next-step");
 const directionsEl = document.querySelector("#directions");
 const mapEl = document.querySelector("#map");
 const healthPill = document.querySelector("#health-pill");
 const locateButton = document.querySelector("#locate-button");
+const useLocationButton = document.querySelector("#use-location-button");
 const gpsStatusEl = document.querySelector("#gps-status");
 const feedbackNoteEl = document.querySelector("#feedback-note");
 const feedbackButtons = document.querySelectorAll("[data-feedback-type]");
@@ -18,6 +20,9 @@ let currentPosition = null;
 let gpsWatchId = null;
 let leafletMap = null;
 let leafletLayers = [];
+let stableViewportHeight = window.innerHeight;
+let lastViewportWidth = window.innerWidth;
+let viewportRefreshTimer = null;
 
 function numberFromInput(id) {
   const value = Number.parseFloat(document.querySelector(`#${id}`).value);
@@ -97,9 +102,11 @@ async function loadHealth() {
 
 async function runRouteQuery() {
   routeButton.disabled = true;
+  document.body.classList.remove("has-route");
   setMessage("Routing...");
   tabsEl.replaceChildren();
   summaryEl.replaceChildren();
+  nextStepEl.replaceChildren();
   directionsEl.replaceChildren();
   drawEmptyMap("Routing");
 
@@ -152,6 +159,7 @@ async function runRouteQuery() {
     routeResponse = null;
     lastRouteQuery = null;
     setMessage(error.message, true);
+    nextStepEl.replaceChildren();
     drawEmptyMap("No route");
   } finally {
     routeButton.disabled = false;
@@ -179,7 +187,9 @@ function renderRoutes() {
   });
 
   const route = routeResponse.routes[selectedRouteIndex];
+  document.body.classList.add("has-route");
   renderSummary(route);
+  renderNextStep(route);
   renderDirections(route);
   drawMap(routeResponse.routes, selectedRouteIndex);
   updateFeedbackState();
@@ -205,6 +215,31 @@ function renderSummary(route) {
   explanation.textContent = route.explanation;
 
   summaryEl.append(heading, line, explanation);
+}
+
+function renderNextStep(route) {
+  nextStepEl.replaceChildren();
+  const [step] = route.directions;
+  if (!step) {
+    return;
+  }
+
+  const label = document.createElement("span");
+  label.className = "next-step-label";
+  label.textContent = "Next";
+
+  const instruction = document.createElement("strong");
+  instruction.textContent = step.instruction;
+
+  const meta = document.createElement("div");
+  meta.className = "step-meta";
+  meta.append(
+    metricSpan(meters(step.distance_m)),
+    metricSpan(minutes(step.time_s)),
+    metricSpan(`${Math.round(step.gain_m)} m up`)
+  );
+
+  nextStepEl.append(label, instruction, meta);
 }
 
 function metricSpan(text) {
@@ -319,7 +354,7 @@ function ensureLeafletMap() {
   if (!leafletMap) {
     mapEl.replaceChildren();
     leafletMap = L.map(mapEl, {
-      zoomControl: true,
+      zoomControl: false,
       attributionControl: true,
     }).setView([37.7749, -122.4194], 13);
     L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
@@ -404,8 +439,125 @@ function drawLeafletMap(map, routes, selectedIndex) {
   }
 
   if (bounds.isValid()) {
-    map.fitBounds(bounds.pad(0.18));
+    map.fitBounds(bounds.pad(0.14), mapFitOptions());
   }
+}
+
+function mapFitOptions() {
+  if (window.matchMedia("(min-width: 860px)").matches) {
+    return {
+      paddingTopLeft: [470, 90],
+      paddingBottomRight: [36, 36],
+    };
+  }
+
+  const visibleHeight = window.visualViewport?.height || window.innerHeight;
+  const bottomRatio = document.body.classList.contains("is-editing") ? 0.28 : 0.46;
+  const bottomLimit = document.body.classList.contains("is-editing") ? 190 : 360;
+  return {
+    paddingTopLeft: [24, 112],
+    paddingBottomRight: [24, Math.min(visibleHeight * bottomRatio, bottomLimit)],
+  };
+}
+
+function installViewportGuards() {
+  updateViewportState();
+  window.addEventListener("resize", updateViewportState);
+  window.visualViewport?.addEventListener("resize", updateViewportState);
+  window.visualViewport?.addEventListener("scroll", updateViewportState);
+
+  document.addEventListener("focusin", (event) => {
+    if (!isEditableTarget(event.target)) {
+      return;
+    }
+    document.body.classList.add("is-editing");
+    updateViewportState();
+  });
+
+  document.addEventListener("focusout", () => {
+    window.setTimeout(updateViewportState, 180);
+  });
+}
+
+function updateViewportState() {
+  const visualViewport = window.visualViewport;
+  const visibleHeight = visualViewport?.height || window.innerHeight;
+  const viewportWidth = window.innerWidth;
+
+  if (Math.abs(viewportWidth - lastViewportWidth) > 40) {
+    stableViewportHeight = window.innerHeight;
+    lastViewportWidth = viewportWidth;
+  }
+
+  stableViewportHeight = Math.max(stableViewportHeight, window.innerHeight, visibleHeight);
+  const activeEditable = isEditableTarget(document.activeElement);
+  const keyboardOffset = activeEditable && visualViewport
+    ? Math.max(0, window.innerHeight - visualViewport.height - visualViewport.offsetTop)
+    : 0;
+  const mobileEditing = activeEditable && window.matchMedia("(max-width: 520px)").matches;
+
+  document.documentElement.style.setProperty(
+    "--app-height",
+    `${Math.round(stableViewportHeight)}px`
+  );
+  document.documentElement.style.setProperty(
+    "--visible-height",
+    `${Math.round(visibleHeight)}px`
+  );
+  document.documentElement.style.setProperty(
+    "--keyboard-offset",
+    `${Math.round(keyboardOffset > 80 ? keyboardOffset : 0)}px`
+  );
+  document.body.classList.toggle("is-editing", mobileEditing);
+  refreshLeafletSize();
+}
+
+function isEditableTarget(target) {
+  return Boolean(target?.matches?.("input, textarea, select"));
+}
+
+function refreshLeafletSize() {
+  if (!leafletMap) {
+    return;
+  }
+  window.clearTimeout(viewportRefreshTimer);
+  viewportRefreshTimer = window.setTimeout(() => {
+    leafletMap.invalidateSize({ pan: false });
+  }, 140);
+}
+
+function useCurrentLocationForStart() {
+  if (!navigator.geolocation) {
+    setGpsStatus("GPS unavailable", true);
+    return;
+  }
+
+  useLocationButton.disabled = true;
+  setGpsStatus("Locating...");
+  navigator.geolocation.getCurrentPosition(
+    (position) => {
+      currentPosition = positionPayload(position);
+      document.querySelector("#origin-address").value = "";
+      document.querySelector("#origin-address").placeholder = "Current location";
+      document.querySelector("#origin-lat").value = currentPosition.lat;
+      document.querySelector("#origin-lon").value = currentPosition.lon;
+      setGpsStatus(`GPS ±${Math.round(currentPosition.accuracy_m || 0)} m`);
+      setMessage("Start set to current location");
+      if (routeResponse) {
+        drawMap(routeResponse.routes, selectedRouteIndex);
+      }
+      useLocationButton.disabled = false;
+    },
+    (error) => {
+      setGpsStatus(error.message || "GPS failed", true);
+      useLocationButton.disabled = false;
+    },
+    {
+      enableHighAccuracy: true,
+      maximumAge: 5000,
+      timeout: 15000,
+    }
+  );
 }
 
 function fallbackSvg() {
@@ -579,6 +731,7 @@ form.addEventListener("submit", (event) => {
 });
 
 locateButton.addEventListener("click", toggleLocationWatch);
+useLocationButton.addEventListener("click", useCurrentLocationForStart);
 
 feedbackButtons.forEach((button) => {
   button.addEventListener("click", () => {
@@ -592,6 +745,7 @@ if ("serviceWorker" in navigator) {
   });
 }
 
+installViewportGuards();
 loadHealth();
 updateFeedbackState();
 drawEmptyMap("Flemme");
