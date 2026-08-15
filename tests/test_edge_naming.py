@@ -4,8 +4,30 @@ from app.core.edge_naming import (
     OfficialStreetName,
     apply_official_street_names,
     assign_edge_display_names,
+    edge_label,
+    format_street_name,
 )
 from app.core.models import Edge, Graph, Node
+
+
+def test_format_street_name_humanizes_numbered_ordinal_streets() -> None:
+    assert format_street_name("03RD ST") == "3rd Street"
+    assert format_street_name("02ND AV") == "2nd Avenue"
+    assert format_street_name("10TH ST") == "10th Street"
+
+
+def test_edge_label_formats_raw_numbered_street_names_for_display() -> None:
+    edge = Edge(
+        edge_id=1,
+        source=1,
+        target=2,
+        geometry=[(-122.0, 37.0), (-121.999, 37.0)],
+        length_m=100.0,
+        street_name="03RD Street",
+        display_name="03RD Street",
+    )
+
+    assert edge_label(edge).text == "3rd Street"
 
 
 def test_assign_edge_display_names_infers_sidewalk_names_from_adjacent_streets() -> None:

@@ -10,7 +10,9 @@ from app.core.costs import (
     AVOID_HILLS,
     FASTEST,
     edge_allowed,
+    edge_cost,
     edge_time_s,
+    effective_uphill_grade_for_cost,
     make_edge_cost,
     route_metrics,
 )
@@ -22,6 +24,11 @@ from app.core.route_reasonableness import choose_reasonable_recommendation
 
 PEAK_GRADE_CANDIDATE_CAPS = (0.10, 0.12, 0.14, 0.16, 0.18, 0.20)
 LOW_TURN_CANDIDATE_PENALTY_S = 90.0
+VISIBLE_TURN_CANDIDATE_PENALTY_S = 90.0
+VISIBLE_TURN_FRAGMENT_M = 12.0
+PRACTICAL_EQUIVALENT_MAX_TIME_DELTA_S = 60.0
+PRACTICAL_EQUIVALENT_MAX_DISTANCE_DELTA_M = 75.0
+PRACTICAL_EQUIVALENT_MAX_STEEP_EXPOSURE_DELTA_M = 20.0
 
 
 def route_geometry(edges: list[Edge]) -> list[tuple[float, float]]:
@@ -82,7 +89,8 @@ def _path_with_max_uphill_grade(
         edge_cost=lambda edge: edge_time_s(edge, FASTEST),
         heuristic=heuristic,
         edge_allowed=lambda edge: (
-            edge_allowed(edge, prefs) and edge.max_uphill_grade <= max_uphill_grade
+            edge_allowed(edge, prefs)
+            and effective_uphill_grade_for_cost(edge) <= max_uphill_grade
         ),
     )
 
@@ -156,6 +164,76 @@ def _path_with_turn_penalty(
     return edge_ids
 
 
+def _visible_route_choice_key(previous_key: str, edge: Edge) -> str:
+    if previous_key and edge.length_m <= VISIBLE_TURN_FRAGMENT_M:
+        return previous_key
+    return _route_choice_key(edge)
+
+
+def _path_with_visible_turn_penalty(
+    graph: Graph,
+    start: int,
+    goal: int,
+    prefs: UserPrefs,
+    turn_penalty_s: float = VISIBLE_TURN_CANDIDATE_PENALTY_S,
+) -> list[int] | None:
+    if start not in graph.nodes or goal not in graph.nodes:
+        return None
+    if start == goal:
+        return []
+
+    heuristic = walking_time_heuristic(graph)
+    start_state = (start, "")
+    frontier: list[tuple[float, int, float, int, str]] = []
+    sequence = 0
+    heappush(frontier, (heuristic(start, goal), sequence, 0.0, start, ""))
+    cost_so_far: dict[tuple[int, str], float] = {start_state: 0.0}
+    came_from: dict[tuple[int, str], tuple[tuple[int, str], int]] = {}
+    goal_state: tuple[int, str] | None = None
+
+    while frontier:
+        _, _, current_cost, current_node, previous_key = heappop(frontier)
+        current_state = (current_node, previous_key)
+        if current_cost != cost_so_far.get(current_state, inf):
+            continue
+        if current_node == goal:
+            goal_state = current_state
+            break
+
+        for edge in graph.outgoing_edges(current_node):
+            if not edge_allowed(edge, prefs):
+                continue
+            current_key = _visible_route_choice_key(previous_key, edge)
+            change_cost = (
+                turn_penalty_s
+                if previous_key and current_key != previous_key
+                else 0.0
+            )
+            next_cost = current_cost + edge_cost(edge, prefs) + change_cost
+            next_state = (edge.target, current_key)
+            if next_cost < cost_so_far.get(next_state, inf):
+                cost_so_far[next_state] = next_cost
+                came_from[next_state] = (current_state, edge.edge_id)
+                sequence += 1
+                priority = next_cost + heuristic(edge.target, goal)
+                heappush(
+                    frontier,
+                    (priority, sequence, next_cost, edge.target, current_key),
+                )
+
+    if goal_state is None:
+        return None
+
+    edge_ids: list[int] = []
+    current_state = goal_state
+    while current_state != start_state:
+        previous_state, edge_id = came_from[current_state]
+        edge_ids.append(edge_id)
+        current_state = previous_state
+    edge_ids.reverse()
+    return edge_ids
+
+
 def _overlap_ratio(left: RouteOption, right: RouteOption) -> float:
     left_edges = set(left.edge_ids)
     right_edges = set(right.edge_ids)
@@ -179,6 +257,36 @@ def _candidate_option(graph: Graph, edge_ids: list[int], prefs: UserPrefs) -> Ro
     return build_route_option(graph, edge_ids, "recommended", prefs)
 
 
+def _direction_signature(option: RouteOption) -> tuple[str, ...]:
+    return tuple(
+        (step.street_name or "").strip().casefold()
+        for step in option.directions
+        if step.street_name
+    )
+
+
+def _uphill_10pct_distance_m(option: RouteOption) -> float:
+    return sum(event.length_above_10pct_m for event in option.hill_events)
+
+
+def _is_same_practical_route(candidate: RouteOption, fastest: RouteOption) -> bool:
+    candidate_signature = _direction_signature(candidate)
+    fastest_signature = _direction_signature(fastest)
+    if not candidate_signature or candidate_signature != fastest_signature:
+        return False
+
+    time_delta_s = abs(candidate.metrics.time_s - fastest.metrics.time_s)
+    distance_delta_m = abs(candidate.metrics.distance_m - fastest.metrics.distance_m)
+    steep_exposure_delta_m = abs(
+        _uphill_10pct_distance_m(candidate) - _uphill_10pct_distance_m(fastest)
+    )
+    return (
+        time_delta_s <= PRACTICAL_EQUIVALENT_MAX_TIME_DELTA_S
+        and distance_delta_m <= PRACTICAL_EQUIVALENT_MAX_DISTANCE_DELTA_M
+        and steep_exposure_delta_m <= PRACTICAL_EQUIVALENT_MAX_STEEP_EXPOSURE_DELTA_M
+    )
+
+
 def _bounded_recommendation_candidates(
     graph: Graph,
     start: int,
@@ -194,6 +302,10 @@ def _bounded_recommendation_candidates(
     low_turn_path = _path_with_turn_penalty(graph, start, goal, prefs)
     if low_turn_path is not None:
         candidates.append(_candidate_option(graph, low_turn_path, prefs))
+
+    visible_turn_path = _path_with_visible_turn_penalty(graph, start, goal, prefs)
+    if visible_turn_path is not None:
+        candidates.append(_candidate_option(graph, visible_turn_path, prefs))
 
     for cap in PEAK_GRADE_CANDIDATE_CAPS:
         capped_path = _path_with_max_uphill_grade(graph, start, goal, prefs, cap)
@@ -215,6 +327,7 @@ def generate_route_candidates(
         return []
 
     fastest = build_route_option(graph, fastest_path, "fastest", FASTEST)
+    fastest_is_flattest = False
     candidates: list[RouteOption] = [fastest]
 
     if user_prefs.mode in {"balanced", "custom"}:
@@ -229,9 +342,16 @@ def generate_route_candidates(
             candidate_edges,
         )
         if tuple(recommended.edge_ids) != tuple(fastest.edge_ids):
-            candidates.append(
-                build_route_option(graph, recommended.edge_ids, "recommended", user_prefs)
+            recommended_option = build_route_option(
+                graph,
+                recommended.edge_ids,
+                "recommended",
+                user_prefs,
             )
+            if _is_same_practical_route(recommended_option, fastest):
+                fastest_is_flattest = True
+            else:
+                candidates.append(recommended_option)
     elif user_prefs.mode != "fastest":
         recommendation_prefs = AVOID_HILLS if user_prefs.mode == "avoid_hills" else user_prefs
         if user_prefs.mode == "accessibility":
@@ -254,7 +374,12 @@ def generate_route_candidates(
     if flattest_path is not None:
         flattest = build_route_option(graph, flattest_path, "flattest", flattest_prefs)
         budget = fastest.metrics.time_s + user_prefs.max_extra_time_s_for_flatter_route
-        if (
+        if tuple(flattest_path) == tuple(fastest_path) or _is_same_practical_route(
+            flattest,
+            fastest,
+        ):
+            fastest_is_flattest = True
+        elif (
             tuple(flattest.edge_ids) not in {tuple(option.edge_ids) for option in candidates}
             and flattest.metrics.time_s <= budget
         ):
@@ -262,7 +387,12 @@ def generate_route_candidates(
 
     candidates = _deduplicate(candidates)
     for index, option in enumerate(candidates):
-        candidates[index].explanation = explain_route(option, fastest, user_prefs)
+        candidates[index].explanation = explain_route(
+            option,
+            fastest,
+            user_prefs,
+            fastest_is_flattest=fastest_is_flattest,
+        )
 
     label_order = {"recommended": 0, "accessible": 0, "fastest": 1, "flattest": 2, "balanced": 3}
     return sorted(

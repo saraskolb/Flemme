@@ -6,8 +6,12 @@ import pytest
 
 from app.core.alternatives import build_route_option, generate_route_candidates, profile_path
 from app.core.costs import BALANCED, FASTEST
-from app.core.models import Edge, Graph, Node
-from app.core.route_reasonableness import diagnose_route, route_time_budget_s
+from app.core.models import DirectionStep, Edge, Graph, Node, RouteMetrics, RouteOption
+from app.core.route_reasonableness import (
+    choose_reasonable_recommendation,
+    diagnose_route,
+    route_time_budget_s,
+)
 
 
 def _edge(
@@ -38,6 +42,76 @@ def _edge(
         length_above_8pct_up_m=length_above_8pct_up_m,
         length_above_10pct_up_m=length_above_10pct_up_m,
         length_above_12pct_up_m=length_above_12pct_up_m,
+    )
+
+
+def _manual_edge(
+    edge_id: int,
+    max_uphill_grade: float,
+    above_10pct_m: float,
+    above_12pct_m: float = 0.0,
+) -> Edge:
+    return Edge(
+        edge_id=edge_id,
+        source=edge_id,
+        target=edge_id + 1,
+        geometry=[(-122.0, 37.0), (-121.975, 37.0)],
+        length_m=1_000.0,
+        street_name=f"Street {edge_id}",
+        base_time_s=600.0,
+        gain_m=max_uphill_grade * above_10pct_m,
+        max_uphill_grade=max_uphill_grade,
+        max_abs_grade=max_uphill_grade,
+        sustained_uphill_grade_20m=max_uphill_grade,
+        sustained_uphill_grade_50m=max_uphill_grade,
+        length_above_6pct_up_m=above_10pct_m,
+        length_above_8pct_up_m=above_10pct_m,
+        length_above_10pct_up_m=above_10pct_m,
+        length_above_12pct_up_m=above_12pct_m,
+    )
+
+
+def _manual_option(
+    edge_ids: list[int],
+    time_s: float,
+    distance_m: float,
+    max_uphill_grade: float,
+    step_count: int,
+    above_10pct_m: float,
+    label: str = "recommended",
+) -> RouteOption:
+    return RouteOption(
+        label=label,  # type: ignore[arg-type]
+        edge_ids=edge_ids,
+        geometry=[(-122.0, 37.0), (-121.975, 37.0)],
+        metrics=RouteMetrics(
+            time_s=time_s,
+            distance_m=distance_m,
+            gain_m=max_uphill_grade * above_10pct_m,
+            loss_m=0.0,
+            max_uphill_grade=max_uphill_grade,
+            max_downhill_grade=0.0,
+            max_abs_grade=max_uphill_grade,
+            hill_discomfort=0.0,
+            downhill_discomfort=0.0,
+            safety_penalty=0.0,
+            barrier_penalty=0.0,
+            uncertainty_penalty=0.0,
+            route_score=time_s,
+        ),
+        directions=[
+            DirectionStep(
+                instruction=f"Walk on Street {index}",
+                street_name=f"Street {index}",
+                distance_m=distance_m / step_count,
+                time_s=time_s / step_count,
+                gain_m=0.0,
+                loss_m=0.0,
+                max_uphill_grade=max_uphill_grade,
+                geometry=[(-122.0, 37.0), (-121.975, 37.0)],
+            )
+            for index in range(step_count)
+        ],
     )
 
 
@@ -207,3 +281,44 @@ def test_route_diagnostics_reject_many_extra_direction_steps() -> None:
     assert diagnostics.turn_penalty > 0.0
     assert diagnostics.within_direction_budget is False
     assert diagnostics.is_reasonable_recommendation is False
+
+
+def test_recommendation_prefers_much_simpler_route_when_hill_quality_is_similar() -> None:
+    fastest = _manual_option(
+        [101],
+        time_s=2_675.0,
+        distance_m=3_590.0,
+        max_uphill_grade=0.66,
+        step_count=16,
+        above_10pct_m=552.0,
+        label="fastest",
+    )
+    simpler = _manual_option(
+        [201],
+        time_s=2_834.0,
+        distance_m=3_803.0,
+        max_uphill_grade=0.23,
+        step_count=4,
+        above_10pct_m=258.0,
+    )
+    winding = _manual_option(
+        [301],
+        time_s=2_759.0,
+        distance_m=3_702.0,
+        max_uphill_grade=0.16,
+        step_count=13,
+        above_10pct_m=281.0,
+    )
+    candidate_edges = {
+        tuple(fastest.edge_ids): [_manual_edge(101, 0.66, 552.0, 320.0)],
+        tuple(simpler.edge_ids): [_manual_edge(201, 0.23, 258.0, 110.0)],
+        tuple(winding.edge_ids): [_manual_edge(301, 0.145, 281.0, 128.0)],
+    }
+
+    selected = choose_reasonable_recommendation(
+        [simpler, winding],
+        fastest,
+        candidate_edges,
+    )
+
+    assert selected.edge_ids == simpler.edge_ids

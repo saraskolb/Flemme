@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from math import atan2, cos, degrees, radians
 
-from app.core.costs import edge_time_s
+from app.core.costs import edge_time_s, effective_uphill_grade_for_cost
 from app.core.edge_naming import edge_label
 from app.core.models import Coordinate, DirectionStep, Edge, UserPrefs
 
@@ -141,7 +141,7 @@ def _step_from_edges(
     time_s = sum(edge_time_s(edge, prefs) for edge in edges)
     gain_m = sum(edge.gain_m for edge in edges)
     loss_m = sum(edge.loss_m for edge in edges)
-    max_uphill_grade = max((edge.max_uphill_grade for edge in edges), default=0.0)
+    max_uphill_grade = max((effective_uphill_grade_for_cost(edge) for edge in edges), default=0.0)
     prefix = f"Walk {_compass_from_bearing(bearing)} on" if is_first else (
         f"{_turn_instruction(previous_bearing or bearing, bearing)} onto"
     )

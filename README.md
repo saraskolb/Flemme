@@ -63,6 +63,16 @@ python -m pip install -e ".[dev]"
 pytest
 ```
 
+Run the field-reviewed citywide route diary before tuning the route algorithm:
+
+```bash
+pytest tests/test_route_regressions.py
+```
+
+Those cases live in `tests/fixtures/route_regression_cases.json`. Add routes
+there when field testing finds a known-good recommendation or a route Flemme
+should avoid repeating.
+
 ## Run the API
 
 Start PostGIS and the API service:

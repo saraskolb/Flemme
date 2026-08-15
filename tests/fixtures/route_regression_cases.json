@@ -1,0 +1,113 @@
+[
+  {
+    "id": "folsom_to_page_simple_divisadero",
+    "status": "known_good",
+    "description": "Field-reviewed route from 2399 Folsom Street to 1227 Page Street. Prefer the simpler Divisadero/Page route over the winding Waller/Broderick/Buena Vista ending.",
+    "origin": {
+      "label": "2399 Folsom Street",
+      "lat": 37.759025,
+      "lon": -122.414598
+    },
+    "destination": {
+      "label": "1227 Page Street",
+      "lat": 37.7714654,
+      "lon": -122.4412496
+    },
+    "preferences": {
+      "mode": "balanced"
+    },
+    "expected": {
+      "route_label": "recommended",
+      "street_sequence": [
+        "Folsom Street",
+        "14th Street",
+        "Divisadero Street",
+        "Page Street"
+      ],
+      "max_direction_steps": 4,
+      "max_time_min": 48.0,
+      "max_distance_m": 3900.0,
+      "max_uphill_grade_pct": 24.0,
+      "max_10pct_uphill_m": 270.0,
+      "max_12pct_uphill_m": 200.0,
+      "forbidden_streets": [
+        "Waller Street",
+        "Broderick Street",
+        "Buena Vista Ave East",
+        "Baker Street"
+      ]
+    },
+    "notes": "User judged this as the better recommendation even though an older route had a lower peak grade, because the old route's ending felt windy and unintuitive."
+  },
+  {
+    "id": "page_to_duboce_noe_avoid_buena_vista",
+    "status": "known_good",
+    "description": "Known-good Page Street to Duboce route. Prefer the direct Page/Scott street-grid route over the shorter Baker/Buena Vista climb and the extra-turn Haight jog.",
+    "origin": {
+      "label": "1227 Page Street",
+      "lat": 37.7714654,
+      "lon": -122.4412496
+    },
+    "destination": {
+      "label": "599 Duboce Avenue / Duboce Avenue and Noe Street",
+      "lat": 37.76919,
+      "lon": -122.43357
+    },
+    "preferences": {
+      "mode": "balanced"
+    },
+    "expected": {
+      "route_label": "recommended",
+      "street_sequence": [
+        "Page Street",
+        "Scott Street",
+        "Duboce Avenue"
+      ],
+      "max_direction_steps": 3,
+      "max_time_min": 13.0,
+      "max_distance_m": 1010.0,
+      "max_uphill_grade_pct": 10.0,
+      "max_10pct_uphill_m": 5.0,
+      "max_12pct_uphill_m": 5.0,
+      "forbidden_streets": [
+        "Baker Street",
+        "Buena Vista Ave East",
+        "Haight Street"
+      ]
+    },
+    "notes": "User judged walking east on Page and turning directly onto Scott as better than jogging down to Haight first; tiny intersection grade spikes should not force the extra turns."
+  },
+  {
+    "id": "page_to_whole_foods_stanyan_direct",
+    "status": "known_good",
+    "description": "Known-good route from 1227 Page Street to Whole Foods at 690 Stanyan Street. The direct Page/Cole/Haight route is also hill-safe.",
+    "origin": {
+      "label": "1227 Page Street",
+      "lat": 37.7714654,
+      "lon": -122.4412496
+    },
+    "destination": {
+      "label": "Whole Foods Market, 690 Stanyan Street",
+      "lat": 37.769562,
+      "lon": -122.452782
+    },
+    "preferences": {
+      "mode": "balanced"
+    },
+    "expected": {
+      "route_label": "fastest",
+      "street_sequence": [
+        "Page Street",
+        "Cole Street",
+        "Haight Street"
+      ],
+      "max_direction_steps": 3,
+      "max_time_min": 15.0,
+      "max_distance_m": 1200.0,
+      "max_uphill_grade_pct": 7.0,
+      "max_10pct_uphill_m": 5.0,
+      "max_12pct_uphill_m": 5.0
+    },
+    "notes": "Flemme currently returns only the fastest route here because the fastest route is already the practical flat recommendation."
+  }
+]

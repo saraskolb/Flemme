@@ -14,6 +14,7 @@ from app.core.costs import (
     edge_cost,
     effective_uphill_grade_for_cost,
     max_grade_penalty,
+    route_metrics,
     uphill_penalty_curve,
 )
 from app.core.models import Edge, Graph, Node
@@ -119,6 +120,30 @@ def test_tiny_uphill_spike_is_reported_but_capped_for_balanced_cost() -> None:
     assert tiny_spike.max_uphill_grade == pytest.approx(0.30)
     assert effective_uphill_grade_for_cost(tiny_spike) == pytest.approx(0.10)
     assert edge_cost(tiny_spike, BALANCED) < 25.0
+
+
+def test_tiny_uphill_spike_is_capped_in_route_summary() -> None:
+    tiny_spike = Edge(
+        edge_id=1,
+        source=1,
+        target=2,
+        geometry=[(0.0, 0.0), (1.0, 0.0)],
+        length_m=1.5,
+        base_time_s=1.1,
+        gain_m=0.45,
+        max_uphill_grade=0.30,
+        sustained_uphill_grade_20m=0.30,
+        sustained_uphill_grade_50m=0.30,
+        length_above_6pct_up_m=1.5,
+        length_above_8pct_up_m=1.5,
+        length_above_10pct_up_m=1.5,
+        length_above_12pct_up_m=1.5,
+    )
+
+    metrics = route_metrics([tiny_spike], BALANCED)
+
+    assert tiny_spike.max_uphill_grade == pytest.approx(0.30)
+    assert metrics.max_uphill_grade == pytest.approx(0.10)
 
 
 def test_sustained_mild_uphill_exposure_can_outweigh_a_short_spike() -> None:

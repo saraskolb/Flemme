@@ -49,6 +49,57 @@ def test_directions_group_edges_by_street_and_add_turns() -> None:
     assert "uphill up to 7%" in steps[1].instruction
 
 
+def test_directions_format_raw_numbered_street_names() -> None:
+    steps = build_directions(
+        [
+            Edge(
+                edge_id=1,
+                source=1,
+                target=2,
+                geometry=[(-122.0, 37.0), (-121.999, 37.0)],
+                length_m=100.0,
+                street_name="03RD Street",
+                display_name="03RD Street",
+                base_time_s=75.0,
+            ),
+        ],
+        BALANCED,
+    )
+
+    assert steps[0].street_name == "3rd Street"
+    assert steps[0].instruction.startswith("Walk east on 3rd Street")
+    assert "03RD" not in steps[0].instruction
+
+
+def test_directions_cap_tiny_uphill_spike_in_hill_note() -> None:
+    steps = build_directions(
+        [
+            Edge(
+                edge_id=1,
+                source=1,
+                target=2,
+                geometry=[(-122.0, 37.0), (-121.999, 37.0)],
+                length_m=1.5,
+                street_name="Page Street",
+                base_time_s=1.1,
+                gain_m=0.45,
+                max_uphill_grade=0.30,
+                sustained_uphill_grade_20m=0.30,
+                sustained_uphill_grade_50m=0.30,
+                length_above_6pct_up_m=1.5,
+                length_above_8pct_up_m=1.5,
+                length_above_10pct_up_m=1.5,
+                length_above_12pct_up_m=1.5,
+            ),
+        ],
+        BALANCED,
+    )
+
+    assert steps[0].max_uphill_grade == pytest.approx(0.10)
+    assert "uphill up to 10%" in steps[0].instruction
+    assert "30%" not in steps[0].instruction
+
+
 def test_directions_hide_unnamed_sidewalk_connectors() -> None:
     steps = build_directions(
         [

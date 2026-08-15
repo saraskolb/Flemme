@@ -21,6 +21,12 @@ DIRECTNESS_SHAPE_FREE_DELTA = 0.10
 DIRECTION_STEP_FREE_DELTA = 2
 EXTRA_DIRECTION_STEP_PENALTY = 12.0
 SIMPLER_DIRECTION_STEP_BONUS = 8.0
+PRACTICAL_SIMILAR_TIME_S = 2 * 60.0
+PRACTICAL_SIMILAR_DISTANCE_M = 0.20 * 1609.344
+PRACTICAL_SIMILAR_EXTRA_10PCT_M = 35.0
+PRACTICAL_SIMILAR_EXTRA_12PCT_M = 30.0
+PRACTICAL_SIMILAR_MAX_GRADE_DELTA = 0.10
+PRACTICAL_SIMPLER_STEP_DELTA = 5
 
 
 @dataclass(frozen=True)
@@ -266,6 +272,8 @@ def choose_reasonable_recommendation(
     if not scored:
         return fastest
 
+    scored = _remove_practically_dominated_routes(scored, candidate_edges)
+
     return max(
         scored,
         key=lambda item: (
@@ -274,3 +282,58 @@ def choose_reasonable_recommendation(
             -item[0].distance_delta_m,
         ),
     )[1]
+
+
+def _remove_practically_dominated_routes(
+    scored: list[tuple[RouteDiagnostics, RouteOption]],
+    candidate_edges: dict[tuple[int, ...], list[Edge]],
+) -> list[tuple[RouteDiagnostics, RouteOption]]:
+    remaining: list[tuple[RouteDiagnostics, RouteOption]] = []
+    for candidate_item in scored:
+        _, candidate = candidate_item
+        if any(
+            _practically_dominates(
+                challenger,
+                candidate,
+                candidate_edges[tuple(challenger.edge_ids)],
+                candidate_edges[tuple(candidate.edge_ids)],
+            )
+            for _, challenger in scored
+            if tuple(challenger.edge_ids) != tuple(candidate.edge_ids)
+        ):
+            continue
+        remaining.append(candidate_item)
+    return remaining or scored
+
+
+def _practically_dominates(
+    challenger: RouteOption,
+    candidate: RouteOption,
+    challenger_edges: list[Edge],
+    candidate_edges: list[Edge],
+) -> bool:
+    step_savings = len(candidate.directions) - len(challenger.directions)
+    if step_savings < PRACTICAL_SIMPLER_STEP_DELTA:
+        return False
+
+    if challenger.metrics.time_s - candidate.metrics.time_s > PRACTICAL_SIMILAR_TIME_S:
+        return False
+    if challenger.metrics.distance_m - candidate.metrics.distance_m > PRACTICAL_SIMILAR_DISTANCE_M:
+        return False
+
+    challenger_exposure = route_uphill_exposure(challenger_edges)
+    candidate_exposure = route_uphill_exposure(candidate_edges)
+    if (
+        challenger_exposure.above_10pct_m - candidate_exposure.above_10pct_m
+        > PRACTICAL_SIMILAR_EXTRA_10PCT_M
+    ):
+        return False
+    if (
+        challenger_exposure.above_12pct_m - candidate_exposure.above_12pct_m
+        > PRACTICAL_SIMILAR_EXTRA_12PCT_M
+    ):
+        return False
+
+    challenger_grade = _route_effective_max_uphill_grade(challenger_edges)
+    candidate_grade = _route_effective_max_uphill_grade(candidate_edges)
+    return challenger_grade - candidate_grade <= PRACTICAL_SIMILAR_MAX_GRADE_DELTA

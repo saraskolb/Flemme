@@ -138,3 +138,25 @@ def test_recommended_route_explanation_reports_nonzero_steep_exposure() -> None:
 
     assert "near zero" not in explanation
     assert "10%+ uphill distance is 40 m, versus 100 m" in explanation
+
+
+def test_fastest_route_explanation_can_report_it_is_also_flattest() -> None:
+    nodes = {
+        1: Node(1, lon=0.0, lat=0.0, x=0.0, y=0.0),
+        2: Node(2, lon=1.0, lat=0.0, x=1.0, y=0.0),
+    }
+    flat = Edge(
+        edge_id=1,
+        source=1,
+        target=2,
+        geometry=[(0.0, 0.0), (1.0, 0.0)],
+        length_m=100.0,
+        base_time_s=75.0,
+    )
+    graph = Graph(nodes=nodes, edges={1: flat})
+    fastest = build_route_option(graph, [1], "fastest", FASTEST)
+
+    explanation = explain_route(fastest, fastest, BALANCED, fastest_is_flattest=True)
+
+    assert "Fastest: 1 min" in explanation
+    assert "also the flattest practical route Flemme found" in explanation

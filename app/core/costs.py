@@ -198,7 +198,7 @@ def route_metrics(edges: list[Edge], prefs: UserPrefs) -> RouteMetrics:
     distance_m = sum(edge.length_m for edge in edges)
     gain_m = sum(edge.gain_m for edge in edges)
     loss_m = sum(edge.loss_m for edge in edges)
-    max_uphill_grade = max((edge.max_uphill_grade for edge in edges), default=0.0)
+    max_uphill_grade = max((effective_uphill_grade_for_cost(edge) for edge in edges), default=0.0)
     max_downhill_grade = max((edge.max_downhill_grade for edge in edges), default=0.0)
     max_abs_grade = max((edge.max_abs_grade for edge in edges), default=0.0)
     hill = sum(uphill_discomfort(edge) for edge in edges)

@@ -115,7 +115,9 @@ def format_street_name(raw_name: str) -> str:
         upper = token.upper().strip(".")
         if index == len(tokens) - 1 and upper in SUFFIX_EXPANSIONS:
             formatted.append(SUFFIX_EXPANSIONS[upper])
-        elif upper.startswith(("I-", "US-", "HWY")) or upper.isdigit() or _is_ordinal(upper):
+        elif _is_ordinal(upper):
+            formatted.append(_format_ordinal(upper))
+        elif upper.startswith(("I-", "US-", "HWY")) or upper.isdigit():
             formatted.append(upper)
         else:
             formatted.append(token.lower().title())
@@ -124,14 +126,25 @@ def format_street_name(raw_name: str) -> str:
 
 def edge_label(edge: Edge) -> EdgeLabel:
     if edge.street_name:
-        display_name = edge.display_name or edge.street_name
+        display_name = format_street_name(edge.display_name or edge.street_name)
         return EdgeLabel(display_name, f"named:{display_name}", "named")
     if is_connector(edge):
         if edge.display_name and edge.name_source != "generic_connector":
-            return EdgeLabel(edge.display_name, f"connector:{edge.display_name}", "connector")
+            display_name = format_street_name(edge.display_name)
+            return EdgeLabel(display_name, f"connector:{display_name}", "connector")
         return EdgeLabel(None, "connector:generic", "connector")
 
     label_text = edge.display_name
+    if label_text and edge.name_source not in {
+        "generic_connector",
+        "generic_stairs",
+        "generic_alley",
+        "generic_pedestrian_area",
+        "generic_path",
+        "generic_unnamed_street",
+        "generic_edge_type",
+    }:
+        label_text = format_street_name(label_text)
     if not label_text:
         label_text, _ = fallback_display_name(edge)
 
@@ -328,3 +341,9 @@ def _is_ordinal(token: str) -> bool:
         and token[:-2].isdigit()
         and token[-2:] in {"ST", "ND", "RD", "TH"}
     )
+
+
+def _format_ordinal(token: str) -> str:
+    number = int(token[:-2])
+    suffix = token[-2:].lower()
+    return f"{number}{suffix}"

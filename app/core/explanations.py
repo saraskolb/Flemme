@@ -2,12 +2,12 @@ from __future__ import annotations
 
 from dataclasses import replace
 
+from app.core.costs import effective_uphill_grade_for_cost
 from app.core.models import Edge, HillEvent, RouteOption, UserPrefs
 
 
 def _qualifying_event(edge: Edge) -> tuple[str, float] | None:
-    uphill_grade = max(edge.sustained_uphill_grade_20m, edge.sustained_uphill_grade_50m)
-    uphill_grade = max(uphill_grade, edge.max_uphill_grade)
+    uphill_grade = effective_uphill_grade_for_cost(edge)
     if uphill_grade >= 0.06:
         return "uphill", uphill_grade
     return None
@@ -113,9 +113,29 @@ def _uphill_10pct_distance_m(option: RouteOption) -> float:
     return sum(event.length_above_10pct_m for event in option.hill_events)
 
 
-def explain_route(option: RouteOption, fastest: RouteOption | None, prefs: UserPrefs) -> str:
+def explain_route(
+    option: RouteOption,
+    fastest: RouteOption | None,
+    prefs: UserPrefs,
+    fastest_is_flattest: bool = False,
+) -> str:
     prefix = "Recommended" if option.label == "recommended" else option.label.capitalize()
     base = f"{prefix}: {_minutes(option.metrics.time_s)} min, {_miles(option.metrics.distance_m)}."
+
+    if option.label == "fastest" and fastest_is_flattest:
+        steep_exposure_m = _uphill_10pct_distance_m(option)
+        if 0.0 < steep_exposure_m <= 20.0:
+            return (
+                f"{base} This is also the flattest practical route Flemme found; "
+                f"the 10%+ uphill stretch is only {_meters(steep_exposure_m)}. "
+                f"Max uphill grade is {_grade_pct(option.metrics.max_uphill_grade)}."
+            )
+        if option.metrics.max_uphill_grade > 0:
+            return (
+                f"{base} This is also the flattest practical route Flemme found. "
+                f"Max uphill grade is {_grade_pct(option.metrics.max_uphill_grade)}."
+            )
+        return f"{base} This is also the flattest practical route Flemme found."
 
     if fastest is None or option.edge_ids == fastest.edge_ids:
         if option.metrics.max_uphill_grade > 0:
