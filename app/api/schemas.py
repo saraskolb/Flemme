@@ -41,6 +41,17 @@ class DebugRouteRequest(BaseModel):
     preferences: PreferencesIn = Field(default_factory=PreferencesIn)
 
 
+class GeocodeRequest(BaseModel):
+    address: str = Field(min_length=1, max_length=240)
+
+
+class GeocodeResponse(BaseModel):
+    query: str
+    lat: float
+    lon: float
+    display_name: str
+
+
 class RouteMetricsOut(BaseModel):
     time_s: float
     distance_m: float

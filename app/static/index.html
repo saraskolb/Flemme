@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Flemme</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="query-panel" aria-label="Route query">
+        <div class="brand-row">
+          <h1>Flemme</h1>
+          <span id="health-pill" class="status-pill">Graph</span>
+        </div>
+
+        <form id="route-form" class="route-form">
+          <div class="address-grid">
+            <label class="wide-field">
+              <span>Start</span>
+              <input
+                id="origin-address"
+                name="origin-address"
+                autocomplete="street-address"
+                value="Page Street and Broderick Street"
+              />
+            </label>
+            <label class="wide-field">
+              <span>Destination</span>
+              <input
+                id="destination-address"
+                name="destination-address"
+                autocomplete="street-address"
+                value="Duboce Avenue and Noe Street"
+              />
+            </label>
+          </div>
+
+          <div class="control-row">
+            <label class="mode-field">
+              <span>Mode</span>
+              <select id="mode" name="mode">
+                <option value="balanced" selected>Balanced</option>
+                <option value="avoid_hills">Avoid hills</option>
+                <option value="fastest">Fastest</option>
+                <option value="accessibility">Accessibility</option>
+              </select>
+            </label>
+            <button id="route-button" type="submit">Route</button>
+          </div>
+
+          <div class="preset-row" aria-label="Presets">
+            <button type="button" data-preset="duboce">Page to Duboce</button>
+            <button type="button" data-preset="post">Page to Post</button>
+          </div>
+
+          <details class="coordinate-fields">
+            <summary>Coordinates</summary>
+            <div class="field-grid">
+              <label>
+                <span>Start Lat</span>
+                <input id="origin-lat" name="origin-lat" inputmode="decimal" value="37.7714654" />
+              </label>
+              <label>
+                <span>Start Lon</span>
+                <input id="origin-lon" name="origin-lon" inputmode="decimal" value="-122.4412496" />
+              </label>
+              <label>
+                <span>Destination Lat</span>
+                <input id="destination-lat" name="destination-lat" inputmode="decimal" value="37.76919" />
+              </label>
+              <label>
+                <span>Destination Lon</span>
+                <input id="destination-lon" name="destination-lon" inputmode="decimal" value="-122.43357" />
+              </label>
+            </div>
+          </details>
+        </form>
+
+        <div id="message" class="message" role="status"></div>
+        <div id="route-tabs" class="route-tabs" aria-label="Routes"></div>
+        <div id="summary" class="summary"></div>
+        <ol id="directions" class="directions"></ol>
+      </section>
+
+      <section class="map-panel" aria-label="Route map">
+        <svg id="map" viewBox="0 0 1000 720" role="img" aria-label="Route map"></svg>
+      </section>
+    </main>
+
+    <script src="/static/app.js"></script>
+  </body>
+</html>
