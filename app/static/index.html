@@ -3,7 +3,15 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#244b44" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
     <title>Flemme</title>
+    <link rel="manifest" href="/static/manifest.webmanifest" />
+    <link rel="icon" href="/static/icon.svg" type="image/svg+xml" />
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    />
     <link rel="stylesheet" href="/static/styles.css" />
   </head>
   <body>
@@ -22,7 +30,7 @@
                 id="origin-address"
                 name="origin-address"
                 autocomplete="street-address"
-                value="Page Street and Broderick Street"
+                placeholder="Start address or place"
               />
             </label>
             <label class="wide-field">
@@ -31,7 +39,7 @@
                 id="destination-address"
                 name="destination-address"
                 autocomplete="street-address"
-                value="Duboce Avenue and Noe Street"
+                placeholder="Destination address or place"
               />
             </label>
           </div>
@@ -49,29 +57,24 @@
             <button id="route-button" type="submit">Route</button>
           </div>
 
-          <div class="preset-row" aria-label="Presets">
-            <button type="button" data-preset="duboce">Page to Duboce</button>
-            <button type="button" data-preset="post">Page to Post</button>
-          </div>
-
           <details class="coordinate-fields">
             <summary>Coordinates</summary>
             <div class="field-grid">
               <label>
                 <span>Start Lat</span>
-                <input id="origin-lat" name="origin-lat" inputmode="decimal" value="37.7714654" />
+                <input id="origin-lat" name="origin-lat" inputmode="decimal" />
               </label>
               <label>
                 <span>Start Lon</span>
-                <input id="origin-lon" name="origin-lon" inputmode="decimal" value="-122.4412496" />
+                <input id="origin-lon" name="origin-lon" inputmode="decimal" />
               </label>
               <label>
                 <span>Destination Lat</span>
-                <input id="destination-lat" name="destination-lat" inputmode="decimal" value="37.76919" />
+                <input id="destination-lat" name="destination-lat" inputmode="decimal" />
               </label>
               <label>
                 <span>Destination Lon</span>
-                <input id="destination-lon" name="destination-lon" inputmode="decimal" value="-122.43357" />
+                <input id="destination-lon" name="destination-lon" inputmode="decimal" />
               </label>
             </div>
           </details>
@@ -80,14 +83,33 @@
         <div id="message" class="message" role="status"></div>
         <div id="route-tabs" class="route-tabs" aria-label="Routes"></div>
         <div id="summary" class="summary"></div>
+        <section class="walk-tools" aria-label="Walk tools">
+          <div class="walk-row">
+            <button id="locate-button" type="button">Start GPS</button>
+            <span id="gps-status" class="gps-status">GPS idle</span>
+          </div>
+          <label>
+            <span>Note</span>
+            <textarea id="feedback-note" rows="2" placeholder="Optional note"></textarea>
+          </label>
+          <div class="feedback-grid" aria-label="Route feedback">
+            <button type="button" data-feedback-type="good_route">Good</button>
+            <button type="button" data-feedback-type="weird_turn">Weird turn</button>
+            <button type="button" data-feedback-type="too_steep">Too steep</button>
+            <button type="button" data-feedback-type="unsafe">Unsafe</button>
+            <button type="button" data-feedback-type="bad_name">Bad name</button>
+            <button type="button" data-feedback-type="other">Other</button>
+          </div>
+        </section>
         <ol id="directions" class="directions"></ol>
       </section>
 
       <section class="map-panel" aria-label="Route map">
-        <svg id="map" viewBox="0 0 1000 720" role="img" aria-label="Route map"></svg>
+        <div id="map" class="route-map" role="img" aria-label="Route map"></div>
       </section>
     </main>
 
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="/static/app.js"></script>
   </body>
 </html>

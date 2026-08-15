@@ -10,6 +10,7 @@ class Settings:
     graph_json_path: str | None
     graph_version: str
     environment: str
+    feedback_jsonl_path: str
 
 
 def get_settings() -> Settings:
@@ -20,4 +21,7 @@ def get_settings() -> Settings:
         graph_json_path=os.getenv("GRAPH_JSON_PATH"),
         graph_version=os.getenv("GRAPH_VERSION", "dev-synthetic-001"),
         environment=os.getenv("ENVIRONMENT", "development"),
+        feedback_jsonl_path=os.getenv(
+            "FEEDBACK_JSONL_PATH", "data/feedback/route_feedback.jsonl"
+        ),
     )

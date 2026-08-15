@@ -26,7 +26,8 @@ body {
 
 button,
 input,
-select {
+select,
+textarea {
   font: inherit;
 }
 
@@ -48,7 +49,6 @@ select {
 
 .brand-row,
 .control-row,
-.preset-row,
 .route-tabs,
 .summary-line,
 .step-meta {
@@ -110,15 +110,25 @@ label span {
 }
 
 input,
-select {
+select,
+textarea {
   width: 100%;
   min-width: 0;
-  height: 38px;
   border: 1px solid var(--line);
   border-radius: 6px;
   color: var(--ink);
   background: #fff;
   padding: 7px 9px;
+}
+
+input,
+select {
+  height: 38px;
+}
+
+textarea {
+  min-height: 64px;
+  resize: vertical;
 }
 
 .wide-field input {
@@ -127,6 +137,7 @@ select {
 
 input:focus,
 select:focus,
+textarea:focus,
 button:focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
@@ -153,6 +164,11 @@ button:hover {
   background: #eef2f5;
 }
 
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.54;
+}
+
 #route-button {
   align-self: end;
   min-width: 104px;
@@ -171,12 +187,6 @@ button:hover {
   opacity: 0.7;
 }
 
-.preset-row {
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.preset-row button,
 .route-tabs button {
   padding: 7px 10px;
   font-size: 13px;
@@ -205,6 +215,49 @@ button:hover {
 
 .message.error {
   color: #a83232;
+}
+
+.walk-tools {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfcfc;
+}
+
+.walk-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+#locate-button {
+  min-width: 112px;
+  border-color: #2f6fbd;
+  color: #214f88;
+  font-weight: 700;
+}
+
+.gps-status {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.gps-status.error {
+  color: #a83232;
+}
+
+.feedback-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.feedback-grid button {
+  min-height: 42px;
+  padding: 7px 8px;
+  font-size: 13px;
 }
 
 .route-tabs {
@@ -267,7 +320,7 @@ button:hover {
   background: var(--canvas);
 }
 
-#map {
+.route-map {
   display: block;
   width: 100%;
   height: calc(100vh - 36px);
@@ -275,6 +328,13 @@ button:hover {
   border: 1px solid #c6d0d8;
   border-radius: 8px;
   background: #f8faf9;
+  overflow: hidden;
+}
+
+.fallback-map {
+  display: block;
+  width: 100%;
+  height: 100%;
 }
 
 .grid-line {
@@ -312,6 +372,10 @@ button:hover {
   fill: var(--end);
 }
 
+.marker.current {
+  fill: var(--focus);
+}
+
 .map-label {
   fill: var(--ink);
   font-size: 18px;
@@ -328,7 +392,7 @@ button:hover {
     border-bottom: 1px solid var(--line);
   }
 
-  #map {
+  .route-map {
     height: 58vh;
   }
 }
@@ -350,5 +414,9 @@ button:hover {
 
   #route-button {
     width: 100%;
+  }
+
+  .feedback-grid {
+    grid-template-columns: 1fr 1fr;
   }
 }

@@ -10,6 +10,8 @@ from app.api.schemas import (
     GeocodeRequest,
     GeocodeResponse,
     HealthResponse,
+    RouteFeedbackRequest,
+    RouteFeedbackResponse,
     RouteRequest,
     RouteResponse,
     preferences_to_user_prefs,
@@ -26,6 +28,7 @@ from app.db.repositories import (
     PostGISGraphRepository,
     SyntheticGraphRepository,
 )
+from app.feedback import append_route_feedback
 from app.geocoding import GeocodingLookupError, GeocodingServiceError, geocode_address
 
 router = APIRouter()
@@ -105,6 +108,24 @@ def route(request: RouteRequest) -> RouteResponse:
     return RouteResponse(
         routes=[route_option_to_out(option) for option in routes],
         graph_version=graph.version,
+    )
+
+
+@router.post(
+    "/feedback",
+    response_model=RouteFeedbackResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def feedback(request: RouteFeedbackRequest) -> RouteFeedbackResponse:
+    settings = get_settings()
+    saved = append_route_feedback(
+        request.model_dump(mode="json"),
+        Path(settings.feedback_jsonl_path),
+    )
+    return RouteFeedbackResponse(
+        feedback_id=saved.feedback_id,
+        saved_at=saved.saved_at,
+        path=saved.path,
     )
 
 

@@ -111,3 +111,99 @@ def test_route_diagnostics_explain_why_overlong_route_is_not_reasonable() -> Non
     assert diagnostics.within_time_budget is False
     assert diagnostics.hill_benefit_score > 0.0
     assert diagnostics.is_reasonable_recommendation is False
+
+
+def test_route_diagnostics_reject_indirect_detour_even_with_hill_savings() -> None:
+    graph = Graph(
+        nodes={
+            1: Node(1, lon=-122.0, lat=37.0, x=0.0, y=0.0),
+            99: Node(99, lon=-121.99, lat=37.0, x=1_000.0, y=0.0),
+        },
+        edges={
+            101: _edge(
+                101,
+                base_time_s=600.0,
+                length_m=1_000.0,
+                max_uphill_grade=0.25,
+                length_above_6pct_up_m=130.0,
+                length_above_8pct_up_m=130.0,
+                length_above_10pct_up_m=130.0,
+                length_above_12pct_up_m=130.0,
+                street_name="Direct Steep Street",
+            ),
+            201: _edge(
+                201,
+                base_time_s=720.0,
+                length_m=1_300.0,
+                max_uphill_grade=0.08,
+                length_above_6pct_up_m=20.0,
+                street_name="Indirect Flat Street",
+            ),
+        },
+    )
+    fastest = build_route_option(graph, [101], "fastest", FASTEST)
+    indirect = build_route_option(graph, [201], "recommended", BALANCED)
+
+    diagnostics = diagnose_route(
+        indirect,
+        fastest,
+        graph.route_edges(indirect.edge_ids),
+        graph.route_edges(fastest.edge_ids),
+    )
+
+    assert diagnostics.directness_ratio > 1.45
+    assert diagnostics.within_time_budget is True
+    assert diagnostics.hill_benefit_score > 0.0
+    assert diagnostics.within_shape_budget is False
+    assert diagnostics.is_reasonable_recommendation is False
+
+
+def test_route_diagnostics_reject_many_extra_direction_steps() -> None:
+    graph = Graph(
+        nodes={
+            1: Node(1, lon=-122.0, lat=37.0, x=0.0, y=0.0),
+            99: Node(99, lon=-121.99, lat=37.0, x=1_000.0, y=0.0),
+        },
+        edges={
+            101: _edge(
+                101,
+                base_time_s=600.0,
+                length_m=1_000.0,
+                max_uphill_grade=0.25,
+                length_above_6pct_up_m=160.0,
+                length_above_8pct_up_m=160.0,
+                length_above_10pct_up_m=160.0,
+                length_above_12pct_up_m=160.0,
+                street_name="Direct Steep Street",
+            ),
+            **{
+                200 + index: _edge(
+                    200 + index,
+                    base_time_s=85.0,
+                    length_m=130.0,
+                    max_uphill_grade=0.04,
+                    street_name=f"Jog {index}",
+                )
+                for index in range(1, 9)
+            },
+        },
+    )
+    fastest = build_route_option(graph, [101], "fastest", FASTEST)
+    joggy = build_route_option(
+        graph,
+        [201, 202, 203, 204, 205, 206, 207, 208],
+        "recommended",
+        BALANCED,
+    )
+
+    diagnostics = diagnose_route(
+        joggy,
+        fastest,
+        graph.route_edges(joggy.edge_ids),
+        graph.route_edges(fastest.edge_ids),
+    )
+
+    assert diagnostics.direction_step_delta == 7
+    assert diagnostics.turn_penalty > 0.0
+    assert diagnostics.within_direction_budget is False
+    assert diagnostics.is_reasonable_recommendation is False

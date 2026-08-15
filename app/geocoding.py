@@ -36,6 +36,51 @@ class GeocodeResult:
 
 LOCAL_HINTS: tuple[tuple[tuple[str, ...], GeocodeResult], ...] = (
     (
+        ("1227", "page"),
+        GeocodeResult(
+            query="1227 Page Street, San Francisco, CA",
+            lat=37.7714654,
+            lon=-122.4412496,
+            display_name="1227 Page Street, San Francisco, CA",
+        ),
+    ),
+    (
+        ("1840", "haight"),
+        GeocodeResult(
+            query="1840 Haight Street, San Francisco, CA",
+            lat=37.7695111,
+            lon=-122.4526159,
+            display_name="1840 Haight Street, San Francisco, CA",
+        ),
+    ),
+    (
+        ("ferry", "building"),
+        GeocodeResult(
+            query="Ferry Building, San Francisco, CA",
+            lat=37.7955,
+            lon=-122.3937,
+            display_name="Ferry Building, San Francisco, CA",
+        ),
+    ),
+    (
+        ("ocean", "beach"),
+        GeocodeResult(
+            query="Ocean Beach, San Francisco, CA",
+            lat=37.7697,
+            lon=-122.5108,
+            display_name="Ocean Beach, San Francisco, CA",
+        ),
+    ),
+    (
+        ("duboce", "park", "cafe"),
+        GeocodeResult(
+            query="Duboce Park Cafe, San Francisco, CA",
+            lat=37.7691622,
+            lon=-122.4315697,
+            display_name="Duboce Park Cafe, 2 Sanchez Street, San Francisco, CA",
+        ),
+    ),
+    (
         ("page", "broderick"),
         GeocodeResult(
             query="Page Street and Broderick Street, San Francisco, CA",
@@ -51,6 +96,15 @@ LOCAL_HINTS: tuple[tuple[tuple[str, ...], GeocodeResult], ...] = (
             lat=37.76919,
             lon=-122.43357,
             display_name="Duboce Avenue and Noe Street, San Francisco, CA",
+        ),
+    ),
+    (
+        ("1737", "post"),
+        GeocodeResult(
+            query="1737 Post Street, San Francisco, CA",
+            lat=37.785372647,
+            lon=-122.431366397,
+            display_name="1737 Post Street, San Francisco, CA",
         ),
     ),
     (
