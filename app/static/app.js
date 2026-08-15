@@ -1,15 +1,27 @@
 const presets = {
   duboce: {
-    originAddress: "Page Street and Broderick Street",
-    destinationAddress: "Duboce Avenue and Noe Street",
+    originAddress: "1227 Page Street",
+    destinationAddress: "599 Duboce Avenue",
     origin: [37.7714654, -122.4412496],
-    destination: [37.76919, -122.43357],
+    destination: [37.7690287, -122.4333261],
+  },
+  haight: {
+    originAddress: "1227 Page Street",
+    destinationAddress: "1840 Haight Street",
+    origin: [37.7714654, -122.4412496],
+    destination: [37.7695111, -122.4526159],
   },
   post: {
-    originAddress: "Page Street and Broderick Street",
+    originAddress: "1227 Page Street",
     destinationAddress: "Post Street and Webster Street",
     origin: [37.7714654, -122.4412496],
     destination: [37.785372647, -122.431366397],
+  },
+  ocean: {
+    originAddress: "Ferry Building",
+    destinationAddress: "Ocean Beach",
+    origin: [37.7955, -122.3937],
+    destination: [37.7697, -122.5108],
   },
 };
 

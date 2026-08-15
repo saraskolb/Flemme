@@ -36,6 +36,42 @@ class GeocodeResult:
 
 LOCAL_HINTS: tuple[tuple[tuple[str, ...], GeocodeResult], ...] = (
     (
+        ("1227", "page"),
+        GeocodeResult(
+            query="1227 Page Street, San Francisco, CA",
+            lat=37.7714654,
+            lon=-122.4412496,
+            display_name="1227 Page Street, San Francisco, CA",
+        ),
+    ),
+    (
+        ("1840", "haight"),
+        GeocodeResult(
+            query="1840 Haight Street, San Francisco, CA",
+            lat=37.7695111,
+            lon=-122.4526159,
+            display_name="1840 Haight Street, San Francisco, CA",
+        ),
+    ),
+    (
+        ("ferry", "building"),
+        GeocodeResult(
+            query="Ferry Building, San Francisco, CA",
+            lat=37.7955,
+            lon=-122.3937,
+            display_name="Ferry Building, San Francisco, CA",
+        ),
+    ),
+    (
+        ("ocean", "beach"),
+        GeocodeResult(
+            query="Ocean Beach, San Francisco, CA",
+            lat=37.7697,
+            lon=-122.5108,
+            display_name="Ocean Beach, San Francisco, CA",
+        ),
+    ),
+    (
         ("page", "broderick"),
         GeocodeResult(
             query="Page Street and Broderick Street, San Francisco, CA",

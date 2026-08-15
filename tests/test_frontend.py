@@ -35,3 +35,14 @@ def test_geocode_endpoint_resolves_local_validation_intersection() -> None:
     payload = response.json()
     assert payload["lat"] == 37.7714654
     assert payload["lon"] == -122.4412496
+
+
+def test_geocode_endpoint_resolves_citywide_demo_places() -> None:
+    client = TestClient(app)
+
+    response = client.post("/geocode", json={"address": "Ferry Building"})
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["lat"] == 37.7955
+    assert payload["lon"] == -122.3937

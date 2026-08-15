@@ -83,6 +83,18 @@ To route against a loaded real graph JSON:
 GRAPH_JSON_PATH=data/graphs/page_duboce_walk_graph.json uvicorn app.main:app --reload
 ```
 
+The FastAPI app also serves a small local route-planner UI at `/`. To run it
+against the city-wide San Francisco DEM graph:
+
+```bash
+scripts/run_local_sf_ui.sh
+```
+
+Then open http://127.0.0.1:8000/ and enter San Francisco start and destination
+addresses. The city-wide JSON cache is large, so the first route request may
+take around 20 seconds while the graph loads; subsequent route queries reuse the
+cached graph in memory.
+
 Health check:
 
 ```bash
