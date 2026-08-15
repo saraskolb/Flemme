@@ -1,30 +1,3 @@
-const presets = {
-  duboce: {
-    originAddress: "1227 Page Street",
-    destinationAddress: "599 Duboce Avenue",
-    origin: [37.7714654, -122.4412496],
-    destination: [37.7690287, -122.4333261],
-  },
-  haight: {
-    originAddress: "1227 Page Street",
-    destinationAddress: "1840 Haight Street",
-    origin: [37.7714654, -122.4412496],
-    destination: [37.7695111, -122.4526159],
-  },
-  post: {
-    originAddress: "1227 Page Street",
-    destinationAddress: "Post Street and Webster Street",
-    origin: [37.7714654, -122.4412496],
-    destination: [37.785372647, -122.431366397],
-  },
-  ocean: {
-    originAddress: "Ferry Building",
-    destinationAddress: "Ocean Beach",
-    origin: [37.7955, -122.3937],
-    destination: [37.7697, -122.5108],
-  },
-};
-
 const form = document.querySelector("#route-form");
 const routeButton = document.querySelector("#route-button");
 const messageEl = document.querySelector("#message");
@@ -33,9 +6,18 @@ const summaryEl = document.querySelector("#summary");
 const directionsEl = document.querySelector("#directions");
 const mapEl = document.querySelector("#map");
 const healthPill = document.querySelector("#health-pill");
+const locateButton = document.querySelector("#locate-button");
+const gpsStatusEl = document.querySelector("#gps-status");
+const feedbackNoteEl = document.querySelector("#feedback-note");
+const feedbackButtons = document.querySelectorAll("[data-feedback-type]");
 
 let routeResponse = null;
 let selectedRouteIndex = 0;
+let lastRouteQuery = null;
+let currentPosition = null;
+let gpsWatchId = null;
+let leafletMap = null;
+let leafletLayers = [];
 
 function numberFromInput(id) {
   const value = Number.parseFloat(document.querySelector(`#${id}`).value);
@@ -65,14 +47,9 @@ function setMessage(text, isError = false) {
   messageEl.classList.toggle("error", isError);
 }
 
-function setPreset(name) {
-  const preset = presets[name];
-  document.querySelector("#origin-address").value = preset.originAddress;
-  document.querySelector("#destination-address").value = preset.destinationAddress;
-  document.querySelector("#origin-lat").value = preset.origin[0];
-  document.querySelector("#origin-lon").value = preset.origin[1];
-  document.querySelector("#destination-lat").value = preset.destination[0];
-  document.querySelector("#destination-lon").value = preset.destination[1];
+function setGpsStatus(text, isError = false) {
+  gpsStatusEl.textContent = text;
+  gpsStatusEl.classList.toggle("error", isError);
 }
 
 async function geocodeInput(addressId, latId, lonId) {
@@ -146,6 +123,13 @@ async function runRouteQuery() {
         mode: document.querySelector("#mode").value,
       },
     };
+    lastRouteQuery = {
+      originAddress: document.querySelector("#origin-address").value.trim(),
+      destinationAddress: document.querySelector("#destination-address").value.trim(),
+      origin,
+      destination,
+      mode: payload.preferences.mode,
+    };
 
     const response = await fetch("/route", {
       method: "POST",
@@ -166,10 +150,12 @@ async function runRouteQuery() {
     renderRoutes();
   } catch (error) {
     routeResponse = null;
+    lastRouteQuery = null;
     setMessage(error.message, true);
     drawEmptyMap("No route");
   } finally {
     routeButton.disabled = false;
+    updateFeedbackState();
   }
 }
 
@@ -196,6 +182,7 @@ function renderRoutes() {
   renderSummary(route);
   renderDirections(route);
   drawMap(routeResponse.routes, selectedRouteIndex);
+  updateFeedbackState();
 }
 
 function renderSummary(route) {
@@ -248,8 +235,16 @@ function renderDirections(route) {
 }
 
 function drawEmptyMap(label) {
+  const map = ensureLeafletMap();
+  if (map) {
+    clearLeafletLayers();
+    map.setView([37.7749, -122.4194], 13);
+    return;
+  }
+
   mapEl.replaceChildren();
-  drawGrid();
+  const svg = fallbackSvg();
+  drawGrid(svg);
   const text = svgNode("text", {
     x: 500,
     y: 360,
@@ -257,14 +252,25 @@ function drawEmptyMap(label) {
     class: "map-label",
   });
   text.textContent = label;
-  mapEl.append(text);
+  svg.append(text);
+  mapEl.append(svg);
 }
 
 function drawMap(routes, selectedIndex) {
+  const map = ensureLeafletMap();
+  if (map) {
+    drawLeafletMap(map, routes, selectedIndex);
+    return;
+  }
+
   mapEl.replaceChildren();
-  drawGrid();
+  const svg = fallbackSvg();
+  drawGrid(svg);
 
   const allPoints = routes.flatMap((route) => route.geometry);
+  if (currentPosition) {
+    allPoints.push([currentPosition.lon, currentPosition.lat]);
+  }
   if (allPoints.length < 2) {
     drawEmptyMap("No geometry");
     return;
@@ -275,30 +281,148 @@ function drawMap(routes, selectedIndex) {
     if (index === selectedIndex) {
       return;
     }
-    mapEl.append(svgNode("path", {
+    svg.append(svgNode("path", {
       d: pathFor(route.geometry, project),
       class: "route-line-muted",
     }));
   });
 
   const selected = routes[selectedIndex];
-  mapEl.append(svgNode("path", {
+  svg.append(svgNode("path", {
     d: pathFor(selected.geometry, project),
     class: "route-line",
   }));
 
   const start = project(selected.geometry[0]);
   const end = project(selected.geometry[selected.geometry.length - 1]);
-  mapEl.append(svgNode("circle", { cx: start.x, cy: start.y, r: 11, class: "marker start" }));
-  mapEl.append(svgNode("circle", { cx: end.x, cy: end.y, r: 11, class: "marker end" }));
+  svg.append(svgNode("circle", { cx: start.x, cy: start.y, r: 11, class: "marker start" }));
+  svg.append(svgNode("circle", { cx: end.x, cy: end.y, r: 11, class: "marker end" }));
+
+  if (currentPosition) {
+    const current = project([currentPosition.lon, currentPosition.lat]);
+    svg.append(svgNode("circle", {
+      cx: current.x,
+      cy: current.y,
+      r: 9,
+      class: "marker current",
+    }));
+  }
+
+  mapEl.append(svg);
 }
 
-function drawGrid() {
+function ensureLeafletMap() {
+  if (!window.L) {
+    return null;
+  }
+
+  if (!leafletMap) {
+    mapEl.replaceChildren();
+    leafletMap = L.map(mapEl, {
+      zoomControl: true,
+      attributionControl: true,
+    }).setView([37.7749, -122.4194], 13);
+    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19,
+      attribution: "&copy; OpenStreetMap contributors",
+    }).addTo(leafletMap);
+  }
+
+  return leafletMap;
+}
+
+function clearLeafletLayers() {
+  leafletLayers.forEach((layer) => layer.remove());
+  leafletLayers = [];
+}
+
+function drawLeafletMap(map, routes, selectedIndex) {
+  clearLeafletLayers();
+  const bounds = L.latLngBounds([]);
+
+  routes.forEach((route, index) => {
+    const latLngs = route.geometry.map(([lon, lat]) => [lat, lon]);
+    if (latLngs.length < 2) {
+      return;
+    }
+    latLngs.forEach((latLng) => bounds.extend(latLng));
+    if (index !== selectedIndex) {
+      leafletLayers.push(L.polyline(latLngs, {
+        color: "#8694a0",
+        opacity: 0.45,
+        weight: 6,
+      }).addTo(map));
+    }
+  });
+
+  const selected = routes[selectedIndex];
+  const selectedLatLngs = selected.geometry.map(([lon, lat]) => [lat, lon]);
+  leafletLayers.push(L.polyline(selectedLatLngs, {
+    color: "#db4c40",
+    opacity: 0.95,
+    weight: 7,
+  }).addTo(map));
+
+  const start = selectedLatLngs[0];
+  const end = selectedLatLngs[selectedLatLngs.length - 1];
+  leafletLayers.push(L.circleMarker(start, {
+    className: "leaflet-start-marker",
+    color: "#ffffff",
+    fillColor: "#207568",
+    fillOpacity: 1,
+    radius: 8,
+    weight: 3,
+  }).addTo(map));
+  leafletLayers.push(L.circleMarker(end, {
+    className: "leaflet-end-marker",
+    color: "#ffffff",
+    fillColor: "#8d3f7a",
+    fillOpacity: 1,
+    radius: 8,
+    weight: 3,
+  }).addTo(map));
+
+  if (currentPosition) {
+    const currentLatLng = [currentPosition.lat, currentPosition.lon];
+    bounds.extend(currentLatLng);
+    leafletLayers.push(L.circleMarker(currentLatLng, {
+      color: "#ffffff",
+      fillColor: "#2f6fbd",
+      fillOpacity: 1,
+      radius: 7,
+      weight: 3,
+    }).addTo(map));
+    if (currentPosition.accuracy_m) {
+      leafletLayers.push(L.circle(currentLatLng, {
+        color: "#2f6fbd",
+        fillColor: "#2f6fbd",
+        fillOpacity: 0.08,
+        radius: currentPosition.accuracy_m,
+        weight: 1,
+      }).addTo(map));
+    }
+  }
+
+  if (bounds.isValid()) {
+    map.fitBounds(bounds.pad(0.18));
+  }
+}
+
+function fallbackSvg() {
+  return svgNode("svg", {
+    viewBox: "0 0 1000 720",
+    class: "fallback-map",
+    role: "img",
+    "aria-label": "Route map",
+  });
+}
+
+function drawGrid(svg) {
   for (let x = 100; x < 1000; x += 100) {
-    mapEl.append(svgNode("line", { x1: x, y1: 0, x2: x, y2: 720, class: "grid-line" }));
+    svg.append(svgNode("line", { x1: x, y1: 0, x2: x, y2: 720, class: "grid-line" }));
   }
   for (let y = 80; y < 720; y += 80) {
-    mapEl.append(svgNode("line", { x1: 0, y1: y, x2: 1000, y2: y, class: "grid-line" }));
+    svg.append(svgNode("line", { x1: 0, y1: y, x2: 1000, y2: y, class: "grid-line" }));
   }
 }
 
@@ -341,17 +465,133 @@ function svgNode(tag, attrs) {
   return node;
 }
 
-document.querySelectorAll("[data-preset]").forEach((button) => {
-  button.addEventListener("click", () => {
-    setPreset(button.dataset.preset);
-    runRouteQuery();
+function updateFeedbackState() {
+  feedbackButtons.forEach((button) => {
+    button.disabled = !routeResponse;
   });
-});
+}
+
+function toggleLocationWatch() {
+  if (!navigator.geolocation) {
+    setGpsStatus("GPS unavailable", true);
+    return;
+  }
+
+  if (gpsWatchId !== null) {
+    navigator.geolocation.clearWatch(gpsWatchId);
+    gpsWatchId = null;
+    locateButton.textContent = "Start GPS";
+    setGpsStatus("GPS idle");
+    return;
+  }
+
+  locateButton.textContent = "Stop GPS";
+  setGpsStatus("Locating...");
+  gpsWatchId = navigator.geolocation.watchPosition(
+    (position) => {
+      currentPosition = positionPayload(position);
+      setGpsStatus(`GPS ±${Math.round(currentPosition.accuracy_m || 0)} m`);
+      if (routeResponse) {
+        drawMap(routeResponse.routes, selectedRouteIndex);
+      }
+    },
+    (error) => {
+      setGpsStatus(error.message || "GPS failed", true);
+      locateButton.textContent = "Start GPS";
+      gpsWatchId = null;
+    },
+    {
+      enableHighAccuracy: true,
+      maximumAge: 5000,
+      timeout: 15000,
+    }
+  );
+}
+
+function positionPayload(position) {
+  const { coords } = position;
+  return {
+    lat: coords.latitude,
+    lon: coords.longitude,
+    accuracy_m: numberOrNull(coords.accuracy),
+    heading: numberOrNull(coords.heading),
+    speed_mps: numberOrNull(coords.speed),
+    observed_at: new Date(position.timestamp).toISOString(),
+  };
+}
+
+function numberOrNull(value) {
+  return Number.isFinite(value) ? value : null;
+}
+
+async function submitFeedback(feedbackType) {
+  if (!routeResponse) {
+    setMessage("Route first", true);
+    return;
+  }
+
+  const route = routeResponse.routes[selectedRouteIndex];
+  const payload = {
+    feedback_type: feedbackType,
+    graph_version: routeResponse.graph_version,
+    route_label: route.label,
+    route_edge_ids: route.edge_ids,
+    direction_street_names: route.directions.map((step) => step.street_name),
+    origin_address: lastRouteQuery?.originAddress || null,
+    destination_address: lastRouteQuery?.destinationAddress || null,
+    origin: lastRouteQuery
+      ? { lat: lastRouteQuery.origin.lat, lon: lastRouteQuery.origin.lon }
+      : null,
+    destination: lastRouteQuery
+      ? { lat: lastRouteQuery.destination.lat, lon: lastRouteQuery.destination.lon }
+      : null,
+    current_position: currentPosition,
+    active_step_index: null,
+    note: feedbackNoteEl.value.trim() || null,
+  };
+
+  feedbackButtons.forEach((button) => {
+    button.disabled = true;
+  });
+  try {
+    const response = await fetch("/feedback", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!response.ok) {
+      const errorPayload = await response.json().catch(() => ({}));
+      throw new Error(errorPayload.detail || `Feedback failed with ${response.status}`);
+    }
+    const result = await response.json();
+    feedbackNoteEl.value = "";
+    setMessage(`Saved feedback ${result.feedback_id.slice(0, 8)}`);
+  } catch (error) {
+    setMessage(error.message, true);
+  } finally {
+    updateFeedbackState();
+  }
+}
 
 form.addEventListener("submit", (event) => {
   event.preventDefault();
   runRouteQuery();
 });
 
+locateButton.addEventListener("click", toggleLocationWatch);
+
+feedbackButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    submitFeedback(button.dataset.feedbackType);
+  });
+});
+
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/static/service-worker.js").catch(() => {});
+  });
+}
+
 loadHealth();
+updateFeedbackState();
 drawEmptyMap("Flemme");

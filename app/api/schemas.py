@@ -52,6 +52,41 @@ class GeocodeResponse(BaseModel):
     display_name: str
 
 
+class LocationObservation(LatLon):
+    accuracy_m: float | None = Field(default=None, ge=0)
+    heading: float | None = Field(default=None, ge=0, le=360)
+    speed_mps: float | None = Field(default=None, ge=0)
+    observed_at: str | None = Field(default=None, max_length=80)
+
+
+class RouteFeedbackRequest(BaseModel):
+    feedback_type: Literal[
+        "good_route",
+        "weird_turn",
+        "too_steep",
+        "unsafe",
+        "bad_name",
+        "other",
+    ]
+    graph_version: str | None = Field(default=None, max_length=120)
+    route_label: str | None = Field(default=None, max_length=80)
+    route_edge_ids: list[int] = Field(default_factory=list, max_length=10_000)
+    direction_street_names: list[str | None] = Field(default_factory=list, max_length=500)
+    origin_address: str | None = Field(default=None, max_length=240)
+    destination_address: str | None = Field(default=None, max_length=240)
+    origin: LatLon | None = None
+    destination: LatLon | None = None
+    current_position: LocationObservation | None = None
+    active_step_index: int | None = Field(default=None, ge=0)
+    note: str | None = Field(default=None, max_length=1_000)
+
+
+class RouteFeedbackResponse(BaseModel):
+    feedback_id: str
+    saved_at: str
+    path: str
+
+
 class RouteMetricsOut(BaseModel):
     time_s: float
     distance_m: float

@@ -72,6 +72,15 @@ LOCAL_HINTS: tuple[tuple[tuple[str, ...], GeocodeResult], ...] = (
         ),
     ),
     (
+        ("duboce", "park", "cafe"),
+        GeocodeResult(
+            query="Duboce Park Cafe, San Francisco, CA",
+            lat=37.7691622,
+            lon=-122.4315697,
+            display_name="Duboce Park Cafe, 2 Sanchez Street, San Francisco, CA",
+        ),
+    ),
+    (
         ("page", "broderick"),
         GeocodeResult(
             query="Page Street and Broderick Street, San Francisco, CA",
@@ -87,6 +96,15 @@ LOCAL_HINTS: tuple[tuple[tuple[str, ...], GeocodeResult], ...] = (
             lat=37.76919,
             lon=-122.43357,
             display_name="Duboce Avenue and Noe Street, San Francisco, CA",
+        ),
+    ),
+    (
+        ("1737", "post"),
+        GeocodeResult(
+            query="1737 Post Street, San Francisco, CA",
+            lat=37.785372647,
+            lon=-122.431366397,
+            display_name="1737 Post Street, San Francisco, CA",
         ),
     ),
     (

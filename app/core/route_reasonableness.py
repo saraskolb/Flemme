@@ -10,11 +10,17 @@ DEFAULT_EXTRA_TIME_RATIO = 0.25
 MIN_EXTRA_TIME_S = 4 * 60.0
 MAX_EXTRA_TIME_S = 8 * 60.0
 MAX_DISTANCE_RATIO = 1.35
-MAX_DIRECTNESS_DELTA = 0.55
+MAX_DIRECTNESS_RATIO = 1.45
+MAX_DIRECTNESS_DELTA = 0.30
+MAX_DIRECTION_STEP_RATIO = 1.75
 MIN_MEANINGFUL_HILL_BENEFIT = 20.0
 EXTRA_MINUTE_PENALTY = 25.0
 DISTANCE_SHAPE_FREE_RATIO = 1.20
-DIRECTNESS_SHAPE_FREE_DELTA = 0.25
+DIRECTNESS_SHAPE_FREE_RATIO = 1.40
+DIRECTNESS_SHAPE_FREE_DELTA = 0.10
+DIRECTION_STEP_FREE_DELTA = 2
+EXTRA_DIRECTION_STEP_PENALTY = 12.0
+SIMPLER_DIRECTION_STEP_BONUS = 8.0
 
 
 @dataclass(frozen=True)
@@ -33,16 +39,21 @@ class RouteDiagnostics:
     distance_ratio: float
     directness_ratio: float
     directness_delta: float
+    direction_step_delta: int
+    direction_step_ratio: float
     max_uphill_grade_reduction: float
     hill_discomfort_saved: float
     exposure_saved: UphillExposure
     hill_benefit_score: float
+    simplicity_bonus: float
     shape_penalty: float
+    turn_penalty: float
     tradeoff_score: float
     time_budget_s: float
     within_time_budget: bool
     within_distance_budget: bool
     within_shape_budget: bool
+    within_direction_budget: bool
     has_meaningful_hill_benefit: bool
 
     @property
@@ -51,6 +62,7 @@ class RouteDiagnostics:
             self.within_time_budget
             and self.within_distance_budget
             and self.within_shape_budget
+            and self.within_direction_budget
             and self.has_meaningful_hill_benefit
             and self.tradeoff_score > 0.0
         )
@@ -99,6 +111,10 @@ def route_directness_ratio(option: RouteOption) -> float:
     if straight_line_m <= 0:
         return 1.0
     return max(1.0, option.metrics.distance_m / straight_line_m)
+
+
+def _max_extra_direction_steps(fastest: RouteOption) -> int:
+    return max(4, round(len(fastest.directions) * 0.5))
 
 
 def _exposure_saved(candidate: UphillExposure, fastest: UphillExposure) -> UphillExposure:
@@ -156,7 +172,15 @@ def diagnose_route(
     )
     directness = route_directness_ratio(candidate)
     fastest_directness = route_directness_ratio(fastest)
+    directness_limit = max(MAX_DIRECTNESS_RATIO, fastest_directness + MAX_DIRECTNESS_DELTA)
     directness_delta = directness - fastest_directness
+    fastest_direction_steps = len(fastest.directions)
+    direction_step_delta = len(candidate.directions) - fastest_direction_steps
+    direction_step_ratio = (
+        len(candidate.directions) / fastest_direction_steps
+        if fastest_direction_steps > 0
+        else 1.0
+    )
     hill_benefit, exposure_saved, max_grade_reduction, discomfort_saved = _hill_benefit_score(
         candidate,
         fastest,
@@ -166,9 +190,27 @@ def diagnose_route(
     extra_minutes = max(0.0, time_delta_s) / 60.0
     shape_penalty = (
         max(0.0, distance_ratio - DISTANCE_SHAPE_FREE_RATIO) * 180.0
+        + max(0.0, directness - DIRECTNESS_SHAPE_FREE_RATIO) * 180.0
         + max(0.0, directness_delta - DIRECTNESS_SHAPE_FREE_DELTA) * 120.0
     )
-    tradeoff_score = hill_benefit - extra_minutes * EXTRA_MINUTE_PENALTY - shape_penalty
+    turn_penalty = (
+        max(0, direction_step_delta - DIRECTION_STEP_FREE_DELTA)
+        * EXTRA_DIRECTION_STEP_PENALTY
+    )
+    simplicity_bonus = max(0, -direction_step_delta) * SIMPLER_DIRECTION_STEP_BONUS
+    tradeoff_score = (
+        hill_benefit
+        + simplicity_bonus
+        - extra_minutes * EXTRA_MINUTE_PENALTY
+        - shape_penalty
+        - turn_penalty
+    )
+    has_enough_direction_budget = direction_step_delta <= _max_extra_direction_steps(fastest)
+    if fastest_direction_steps >= 4:
+        has_enough_direction_budget = (
+            has_enough_direction_budget
+            and direction_step_ratio <= MAX_DIRECTION_STEP_RATIO
+        )
 
     return RouteDiagnostics(
         time_delta_s=time_delta_s,
@@ -177,16 +219,24 @@ def diagnose_route(
         distance_ratio=distance_ratio,
         directness_ratio=directness,
         directness_delta=directness_delta,
+        direction_step_delta=direction_step_delta,
+        direction_step_ratio=direction_step_ratio,
         max_uphill_grade_reduction=max_grade_reduction,
         hill_discomfort_saved=discomfort_saved,
         exposure_saved=exposure_saved,
         hill_benefit_score=hill_benefit,
+        simplicity_bonus=simplicity_bonus,
         shape_penalty=shape_penalty,
+        turn_penalty=turn_penalty,
         tradeoff_score=tradeoff_score,
         time_budget_s=budget,
         within_time_budget=candidate.metrics.time_s <= budget,
         within_distance_budget=distance_ratio <= MAX_DISTANCE_RATIO,
-        within_shape_budget=directness_delta <= MAX_DIRECTNESS_DELTA,
+        within_shape_budget=(
+            directness <= directness_limit
+            and directness_delta <= MAX_DIRECTNESS_DELTA
+        ),
+        within_direction_budget=has_enough_direction_budget,
         has_meaningful_hill_benefit=hill_benefit >= MIN_MEANINGFUL_HILL_BENEFIT,
     )
 

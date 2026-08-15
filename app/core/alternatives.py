@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import replace
+from heapq import heappop, heappush
+from math import inf
 from typing import Literal
 
 from app.core.astar import astar, walking_time_heuristic
@@ -13,11 +15,13 @@ from app.core.costs import (
     route_metrics,
 )
 from app.core.directions import build_directions
+from app.core.edge_naming import edge_label
 from app.core.explanations import detect_hill_events, explain_route
 from app.core.models import Edge, Graph, RouteOption, UserPrefs
 from app.core.route_reasonableness import choose_reasonable_recommendation
 
 PEAK_GRADE_CANDIDATE_CAPS = (0.10, 0.12, 0.14, 0.16, 0.18, 0.20)
+LOW_TURN_CANDIDATE_PENALTY_S = 90.0
 
 
 def route_geometry(edges: list[Edge]) -> list[tuple[float, float]]:
@@ -83,6 +87,75 @@ def _path_with_max_uphill_grade(
     )
 
 
+def _route_choice_key(edge: Edge) -> str:
+    label = edge_label(edge)
+    return label.text or label.key
+
+
+def _path_with_turn_penalty(
+    graph: Graph,
+    start: int,
+    goal: int,
+    prefs: UserPrefs,
+    turn_penalty_s: float = LOW_TURN_CANDIDATE_PENALTY_S,
+) -> list[int] | None:
+    if start not in graph.nodes or goal not in graph.nodes:
+        return None
+    if start == goal:
+        return []
+
+    heuristic = walking_time_heuristic(graph)
+    start_state = (start, "")
+    frontier: list[tuple[float, int, float, int, str]] = []
+    sequence = 0
+    heappush(frontier, (heuristic(start, goal), sequence, 0.0, start, ""))
+    cost_so_far: dict[tuple[int, str], float] = {start_state: 0.0}
+    came_from: dict[tuple[int, str], tuple[tuple[int, str], int]] = {}
+    goal_state: tuple[int, str] | None = None
+
+    while frontier:
+        _, _, current_cost, current_node, previous_key = heappop(frontier)
+        current_state = (current_node, previous_key)
+        if current_cost != cost_so_far.get(current_state, inf):
+            continue
+        if current_node == goal:
+            goal_state = current_state
+            break
+
+        for edge in graph.outgoing_edges(current_node):
+            if not edge_allowed(edge, prefs):
+                continue
+            current_key = _route_choice_key(edge)
+            change_cost = (
+                turn_penalty_s
+                if previous_key and current_key != previous_key
+                else 0.0
+            )
+            next_cost = current_cost + edge_time_s(edge, FASTEST) + change_cost
+            next_state = (edge.target, current_key)
+            if next_cost < cost_so_far.get(next_state, inf):
+                cost_so_far[next_state] = next_cost
+                came_from[next_state] = (current_state, edge.edge_id)
+                sequence += 1
+                priority = next_cost + heuristic(edge.target, goal)
+                heappush(
+                    frontier,
+                    (priority, sequence, next_cost, edge.target, current_key),
+                )
+
+    if goal_state is None:
+        return None
+
+    edge_ids: list[int] = []
+    current_state = goal_state
+    while current_state != start_state:
+        previous_state, edge_id = came_from[current_state]
+        edge_ids.append(edge_id)
+        current_state = previous_state
+    edge_ids.reverse()
+    return edge_ids
+
+
 def _overlap_ratio(left: RouteOption, right: RouteOption) -> float:
     left_edges = set(left.edge_ids)
     right_edges = set(right.edge_ids)
@@ -117,6 +190,10 @@ def _bounded_recommendation_candidates(
     profile_path = _path_for_profile(graph, start, goal, prefs)
     if profile_path is not None:
         candidates.append(_candidate_option(graph, profile_path, prefs))
+
+    low_turn_path = _path_with_turn_penalty(graph, start, goal, prefs)
+    if low_turn_path is not None:
+        candidates.append(_candidate_option(graph, low_turn_path, prefs))
 
     for cap in PEAK_GRADE_CANDIDATE_CAPS:
         capped_path = _path_with_max_uphill_grade(graph, start, goal, prefs, cap)

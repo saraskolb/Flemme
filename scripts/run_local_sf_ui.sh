@@ -12,6 +12,8 @@ Optional environment variables:
   GRAPH_JSON_PATH  Graph cache to serve. Defaults to the 10 m city-wide DEM graph
                    when present, otherwise the 100 m city-wide DEM graph.
   GRAPH_VERSION    Version label shown by /health.
+  HOST             Bind host. Defaults to 127.0.0.1. Use 0.0.0.0 for phone testing
+                   on the same trusted network.
   PORT             Local port. Defaults to 8000.
 EOF
   exit 0
@@ -28,6 +30,7 @@ if [[ -z "${GRAPH_JSON_PATH:-}" ]]; then
 else
   GRAPH_VERSION="${GRAPH_VERSION:-local-graph}"
 fi
+HOST="${HOST:-127.0.0.1}"
 PORT="${PORT:-8000}"
 
 if [[ ! -f "$GRAPH_JSON_PATH" ]]; then
@@ -39,4 +42,4 @@ fi
 export GRAPH_JSON_PATH
 export GRAPH_VERSION
 
-exec .venv/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port "$PORT"
+exec .venv/bin/python -m uvicorn app.main:app --host "$HOST" --port "$PORT"
