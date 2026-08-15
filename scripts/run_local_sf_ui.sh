@@ -9,15 +9,25 @@ Usage:
   scripts/run_local_sf_ui.sh
 
 Optional environment variables:
-  GRAPH_JSON_PATH  Graph cache to serve. Defaults to data/graphs/sf_walk_graph_dem_100m.json.
+  GRAPH_JSON_PATH  Graph cache to serve. Defaults to the 10 m city-wide DEM graph
+                   when present, otherwise the 100 m city-wide DEM graph.
   GRAPH_VERSION    Version label shown by /health.
   PORT             Local port. Defaults to 8000.
 EOF
   exit 0
 fi
 
-GRAPH_JSON_PATH="${GRAPH_JSON_PATH:-data/graphs/sf_walk_graph_dem_100m.json}"
-GRAPH_VERSION="${GRAPH_VERSION:-sf-osm-datasf-dem100m-001}"
+if [[ -z "${GRAPH_JSON_PATH:-}" ]]; then
+  if [[ -f data/graphs/sf_walk_graph_dem_10m.json ]]; then
+    GRAPH_JSON_PATH="data/graphs/sf_walk_graph_dem_10m.json"
+    GRAPH_VERSION="${GRAPH_VERSION:-sf-osm-datasf-dem10m-001}"
+  else
+    GRAPH_JSON_PATH="data/graphs/sf_walk_graph_dem_100m.json"
+    GRAPH_VERSION="${GRAPH_VERSION:-sf-osm-datasf-dem100m-001}"
+  fi
+else
+  GRAPH_VERSION="${GRAPH_VERSION:-local-graph}"
+fi
 PORT="${PORT:-8000}"
 
 if [[ ! -f "$GRAPH_JSON_PATH" ]]; then

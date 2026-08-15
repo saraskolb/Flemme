@@ -91,9 +91,11 @@ scripts/run_local_sf_ui.sh
 ```
 
 Then open http://127.0.0.1:8000/ and enter San Francisco start and destination
-addresses. The city-wide JSON cache is large, so the first route request may
-take around 20 seconds while the graph loads; subsequent route queries reuse the
-cached graph in memory.
+addresses. The launcher uses `data/graphs/sf_walk_graph_dem_10m.json` when it
+exists and falls back to `data/graphs/sf_walk_graph_dem_100m.json` otherwise.
+The city-wide JSON cache is large, so the first route request may take around
+20 seconds while the graph loads; subsequent route queries reuse the cached
+graph in memory.
 
 Health check:
 
@@ -246,6 +248,23 @@ python -m app.ingest.enrich_graph_elevations \
 The current coarse city graph has 211,934 unique DEM sample points and 980,490
 edge elevation samples. It is useful for broad hill signal and route smoke
 tests, but it is still too coarse for final sidewalk-grade decisions.
+
+Add the fine-grained city-wide DEM graph used by the local UI when present:
+
+```bash
+python -m app.ingest.enrich_graph_elevations \
+  --graph data/graphs/sf_walk_graph_flat.json \
+  --output data/graphs/sf_walk_graph_dem_10m.json \
+  --sample-spacing-m 10 \
+  --elevation-provider dem \
+  --dem-path data/dem/USGS_13_n38w123.tif \
+  --graph-version sf-osm-datasf-dem10m-001 \
+  --progress-every 25000
+```
+
+This uses the same routing, recommendation, naming, and direction rules as the
+neighborhood validation graphs; only the graph extent changes to all of San
+Francisco.
 
 Load a dense Panhandle/Cole Valley graph for hill-routing validation:
 
