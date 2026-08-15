@@ -3,9 +3,9 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="theme-color" content="#f97316" />
+    <meta name="theme-color" content="#f9a8d4" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <title>Flemme</title>
+    <title>flemme</title>
     <link rel="manifest" href="/static/manifest.webmanifest" />
     <link rel="icon" href="/static/icon.svg" type="image/svg+xml" />
     <link
@@ -17,7 +17,7 @@
   <body>
     <main class="app-shell">
       <header class="top-bar">
-        <h1>Flemme</h1>
+        <h1>flemme</h1>
         <div class="top-status">
           <span id="health-pill" class="status-pill">Graph</span>
           <span id="gps-status" class="gps-status">GPS idle</span>
@@ -42,7 +42,14 @@
                   autocomplete="street-address"
                   placeholder="Start address or place"
                 />
-                <button id="use-location-button" type="button">Use My Location</button>
+                <button
+                  id="use-location-button"
+                  type="button"
+                  aria-label="Use current location as start"
+                  title="Use current location as start"
+                >
+                  Current
+                </button>
               </div>
             </label>
             <label class="wide-field">

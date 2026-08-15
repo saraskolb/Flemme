@@ -24,6 +24,13 @@ let stableViewportHeight = window.innerHeight;
 let lastViewportWidth = window.innerWidth;
 let viewportRefreshTimer = null;
 
+const ROUTE_COLORS = {
+  recommended: "#1a73e8",
+  fastest: "#5f6368",
+  flattest: "#188038",
+  accessible: "#7c3aed",
+};
+
 function numberFromInput(id) {
   const value = Number.parseFloat(document.querySelector(`#${id}`).value);
   if (!Number.isFinite(value)) {
@@ -177,8 +184,18 @@ function renderRoutes() {
   routeResponse.routes.forEach((route, index) => {
     const button = document.createElement("button");
     button.type = "button";
-    button.textContent = route.label;
+    button.className = `route-tab route-tab-${route.label}`;
     button.setAttribute("aria-selected", String(index === selectedRouteIndex));
+
+    const label = document.createElement("span");
+    label.className = "route-tab-label";
+    label.textContent = route.label;
+
+    const meta = document.createElement("span");
+    meta.className = "route-tab-meta";
+    meta.textContent = `${minutes(route.metrics.time_s)} · ${meters(route.metrics.distance_m)}`;
+
+    button.append(label, meta);
     button.addEventListener("click", () => {
       selectedRouteIndex = index;
       renderRoutes();
@@ -357,9 +374,13 @@ function ensureLeafletMap() {
       zoomControl: false,
       attributionControl: true,
     }).setView([37.7749, -122.4194], 13);
-    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    leafletMap.attributionControl.setPrefix(false);
+    L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/light_all/{z}/{x}/{y}{r}.png", {
       maxZoom: 19,
-      attribution: "&copy; OpenStreetMap contributors",
+      subdomains: "abcd",
+      detectRetina: true,
+      className: "clean-map-tiles",
+      attribution: "&copy; OpenStreetMap contributors &copy; CARTO",
     }).addTo(leafletMap);
   }
 
@@ -382,28 +403,20 @@ function drawLeafletMap(map, routes, selectedIndex) {
     }
     latLngs.forEach((latLng) => bounds.extend(latLng));
     if (index !== selectedIndex) {
-      leafletLayers.push(L.polyline(latLngs, {
-        color: "#8694a0",
-        opacity: 0.45,
-        weight: 6,
-      }).addTo(map));
+      leafletLayers.push(...routePolylineLayers(latLngs, route, false, map));
     }
   });
 
   const selected = routes[selectedIndex];
   const selectedLatLngs = selected.geometry.map(([lon, lat]) => [lat, lon]);
-  leafletLayers.push(L.polyline(selectedLatLngs, {
-    color: "#e85d24",
-    opacity: 0.95,
-    weight: 7,
-  }).addTo(map));
+  leafletLayers.push(...routePolylineLayers(selectedLatLngs, selected, true, map));
 
   const start = selectedLatLngs[0];
   const end = selectedLatLngs[selectedLatLngs.length - 1];
   leafletLayers.push(L.circleMarker(start, {
     className: "leaflet-start-marker",
     color: "#ffffff",
-    fillColor: "#f97316",
+    fillColor: "#f9a8d4",
     fillOpacity: 1,
     radius: 8,
     weight: 3,
@@ -411,7 +424,7 @@ function drawLeafletMap(map, routes, selectedIndex) {
   leafletLayers.push(L.circleMarker(end, {
     className: "leaflet-end-marker",
     color: "#ffffff",
-    fillColor: "#8d3f7a",
+    fillColor: "#7c3aed",
     fillOpacity: 1,
     radius: 8,
     weight: 3,
@@ -441,6 +454,31 @@ function drawLeafletMap(map, routes, selectedIndex) {
   if (bounds.isValid()) {
     map.fitBounds(bounds.pad(0.14), mapFitOptions());
   }
+}
+
+function routePolylineLayers(latLngs, route, isSelected, map) {
+  const color = isSelected ? selectedRouteColor(route) : "#9aa0a6";
+  const outline = L.polyline(latLngs, {
+    color: "#ffffff",
+    opacity: isSelected ? 0.95 : 0.82,
+    weight: isSelected ? 10 : 8,
+    lineCap: "round",
+    lineJoin: "round",
+    interactive: false,
+  }).addTo(map);
+  const line = L.polyline(latLngs, {
+    color,
+    opacity: isSelected ? 0.96 : 0.54,
+    weight: isSelected ? 6 : 5,
+    dashArray: isSelected ? null : "1 10",
+    lineCap: "round",
+    lineJoin: "round",
+  }).addTo(map);
+  return [outline, line];
+}
+
+function selectedRouteColor(route) {
+  return ROUTE_COLORS[route.label] || ROUTE_COLORS.recommended;
 }
 
 function mapFitOptions() {
@@ -748,4 +786,4 @@ if ("serviceWorker" in navigator) {
 installViewportGuards();
 loadHealth();
 updateFeedbackState();
-drawEmptyMap("Flemme");
+drawEmptyMap("flemme");

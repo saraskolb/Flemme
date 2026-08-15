@@ -1,12 +1,12 @@
 {
-  "name": "Flemme",
-  "short_name": "Flemme",
+  "name": "flemme",
+  "short_name": "flemme",
   "description": "Hill-aware walking routes and field feedback for San Francisco.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "background_color": "#ffffff",
-  "theme_color": "#f97316",
+  "theme_color": "#f9a8d4",
   "icons": [
     {
       "src": "/static/icon.svg",
