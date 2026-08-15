@@ -4,10 +4,14 @@
   --muted: #64717d;
   --line: #d7dee5;
   --panel: #ffffff;
-  --canvas: #eef3f1;
-  --route: #db4c40;
+  --canvas: #eef2f3;
+  --brand: #f97316;
+  --brand-dark: #c2410c;
+  --brand-soft: #fff1e6;
+  --brand-line: #fed7aa;
+  --route: #e85d24;
   --route-muted: #8694a0;
-  --start: #207568;
+  --start: #f97316;
   --end: #8d3f7a;
   --focus: #2f6fbd;
 }
@@ -41,7 +45,7 @@ textarea {
   display: flex;
   flex-direction: column;
   gap: 18px;
-  padding: 24px;
+  padding: calc(28px + env(safe-area-inset-top)) 24px 24px;
   background: var(--panel);
   border-right: 1px solid var(--line);
   overflow-y: auto;
@@ -63,8 +67,11 @@ textarea {
 
 h1 {
   margin: 0;
-  font-size: 28px;
-  line-height: 1;
+  color: var(--brand);
+  font-family: "Snell Roundhand", "Apple Chancery", "Brush Script MT", "Segoe Script", cursive;
+  font-size: 36px;
+  font-weight: 700;
+  line-height: 1.12;
   letter-spacing: 0;
 }
 
@@ -172,14 +179,14 @@ button:disabled {
 #route-button {
   align-self: end;
   min-width: 104px;
-  border-color: #244b44;
-  background: #244b44;
+  border-color: var(--brand);
+  background: var(--brand);
   color: #fff;
   font-weight: 700;
 }
 
 #route-button:hover {
-  background: #1c3d37;
+  background: var(--brand-dark);
 }
 
 #route-button:disabled {
@@ -266,8 +273,9 @@ button:disabled {
 }
 
 .route-tabs button[aria-selected="true"] {
-  border-color: #244b44;
-  background: #e1ebe8;
+  border-color: var(--brand);
+  background: var(--brand-soft);
+  color: var(--brand-dark);
 }
 
 .summary {
@@ -401,6 +409,10 @@ button:disabled {
   .query-panel,
   .map-panel {
     padding: 14px;
+  }
+
+  .query-panel {
+    padding-top: calc(22px + env(safe-area-inset-top));
   }
 
   .field-grid {
