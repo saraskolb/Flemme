@@ -12,6 +12,7 @@ from app.core.costs import (
     FASTEST,
     downhill_penalty_curve,
     edge_cost,
+    effective_uphill_grade_for_cost,
     max_grade_penalty,
     uphill_penalty_curve,
 )
@@ -95,3 +96,60 @@ def test_avoid_hills_does_not_avoid_steep_downhill() -> None:
 
     assert edge_cost(downhill_edge, AVOID_HILLS) == pytest.approx(100.0)
     assert profile_path(graph, 1, 2, AVOID_HILLS) == [1]
+
+
+def test_tiny_uphill_spike_is_reported_but_capped_for_balanced_cost() -> None:
+    tiny_spike = Edge(
+        edge_id=1,
+        source=1,
+        target=2,
+        geometry=[(0.0, 0.0), (1.0, 0.0)],
+        length_m=1.5,
+        base_time_s=1.1,
+        gain_m=0.45,
+        max_uphill_grade=0.30,
+        sustained_uphill_grade_20m=0.30,
+        sustained_uphill_grade_50m=0.30,
+        length_above_6pct_up_m=1.5,
+        length_above_8pct_up_m=1.5,
+        length_above_10pct_up_m=1.5,
+        length_above_12pct_up_m=1.5,
+    )
+
+    assert tiny_spike.max_uphill_grade == pytest.approx(0.30)
+    assert effective_uphill_grade_for_cost(tiny_spike) == pytest.approx(0.10)
+    assert edge_cost(tiny_spike, BALANCED) < 25.0
+
+
+def test_sustained_mild_uphill_exposure_can_outweigh_a_short_spike() -> None:
+    long_mild_hill = Edge(
+        edge_id=1,
+        source=1,
+        target=2,
+        geometry=[(0.0, 0.0), (1.0, 0.0)],
+        length_m=100.0,
+        base_time_s=75.0,
+        gain_m=7.0,
+        max_uphill_grade=0.07,
+        sustained_uphill_grade_20m=0.07,
+        sustained_uphill_grade_50m=0.07,
+        length_above_6pct_up_m=100.0,
+    )
+    short_spike = Edge(
+        edge_id=2,
+        source=1,
+        target=2,
+        geometry=[(0.0, 0.0), (1.0, 0.0)],
+        length_m=100.0,
+        base_time_s=75.0,
+        gain_m=2.0,
+        max_uphill_grade=0.30,
+        sustained_uphill_grade_20m=0.30,
+        sustained_uphill_grade_50m=0.30,
+        length_above_6pct_up_m=1.5,
+        length_above_8pct_up_m=1.5,
+        length_above_10pct_up_m=1.5,
+        length_above_12pct_up_m=1.5,
+    )
+
+    assert edge_cost(long_mild_hill, BALANCED) > edge_cost(short_spike, BALANCED)

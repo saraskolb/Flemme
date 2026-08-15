@@ -8,13 +8,16 @@ from app.core.costs import (
     AVOID_HILLS,
     FASTEST,
     edge_allowed,
+    edge_time_s,
     make_edge_cost,
     route_metrics,
 )
 from app.core.directions import build_directions
 from app.core.explanations import detect_hill_events, explain_route
 from app.core.models import Edge, Graph, RouteOption, UserPrefs
-from app.core.pareto import pareto_prune
+from app.core.route_reasonableness import choose_reasonable_recommendation
+
+PEAK_GRADE_CANDIDATE_CAPS = (0.10, 0.12, 0.14, 0.16, 0.18, 0.20)
 
 
 def route_geometry(edges: list[Edge]) -> list[tuple[float, float]]:
@@ -60,6 +63,26 @@ def _path_for_profile(graph: Graph, start: int, goal: int, prefs: UserPrefs) -> 
     )
 
 
+def _path_with_max_uphill_grade(
+    graph: Graph,
+    start: int,
+    goal: int,
+    prefs: UserPrefs,
+    max_uphill_grade: float,
+) -> list[int] | None:
+    heuristic = walking_time_heuristic(graph)
+    return astar(
+        graph=graph,
+        start_node=start,
+        goal_node=goal,
+        edge_cost=lambda edge: edge_time_s(edge, FASTEST),
+        heuristic=heuristic,
+        edge_allowed=lambda edge: (
+            edge_allowed(edge, prefs) and edge.max_uphill_grade <= max_uphill_grade
+        ),
+    )
+
+
 def _overlap_ratio(left: RouteOption, right: RouteOption) -> float:
     left_edges = set(left.edge_ids)
     right_edges = set(right.edge_ids)
@@ -79,29 +102,72 @@ def _deduplicate(options: list[RouteOption], max_overlap: float = 0.95) -> list[
     return unique
 
 
-def generate_route_candidates(
-    graph: Graph, start: int, goal: int, user_prefs: UserPrefs
+def _candidate_option(graph: Graph, edge_ids: list[int], prefs: UserPrefs) -> RouteOption:
+    return build_route_option(graph, edge_ids, "recommended", prefs)
+
+
+def _bounded_recommendation_candidates(
+    graph: Graph,
+    start: int,
+    goal: int,
+    prefs: UserPrefs,
 ) -> list[RouteOption]:
     candidates: list[RouteOption] = []
 
+    profile_path = _path_for_profile(graph, start, goal, prefs)
+    if profile_path is not None:
+        candidates.append(_candidate_option(graph, profile_path, prefs))
+
+    for cap in PEAK_GRADE_CANDIDATE_CAPS:
+        capped_path = _path_with_max_uphill_grade(graph, start, goal, prefs, cap)
+        if capped_path is not None:
+            candidates.append(_candidate_option(graph, capped_path, prefs))
+
+    avoid_hills_path = _path_for_profile(graph, start, goal, AVOID_HILLS)
+    if avoid_hills_path is not None:
+        candidates.append(_candidate_option(graph, avoid_hills_path, AVOID_HILLS))
+
+    return _deduplicate(candidates)
+
+
+def generate_route_candidates(
+    graph: Graph, start: int, goal: int, user_prefs: UserPrefs
+) -> list[RouteOption]:
     fastest_path = _path_for_profile(graph, start, goal, FASTEST)
-    if fastest_path is not None:
-        candidates.append(build_route_option(graph, fastest_path, "fastest", FASTEST))
+    if fastest_path is None:
+        return []
 
-    recommendation_prefs = user_prefs
-    if user_prefs.mode == "fastest":
-        recommendation_prefs = FASTEST
-    elif user_prefs.mode == "avoid_hills":
-        recommendation_prefs = AVOID_HILLS
-    elif user_prefs.mode == "accessibility":
-        recommendation_prefs = replace(user_prefs, forbid_stairs=True)
+    fastest = build_route_option(graph, fastest_path, "fastest", FASTEST)
+    candidates: list[RouteOption] = [fastest]
 
-    recommended_path = _path_for_profile(graph, start, goal, recommendation_prefs)
-    if recommended_path is not None:
-        label: Literal["recommended", "accessible"] = (
-            "accessible" if recommendation_prefs.mode == "accessibility" else "recommended"
+    if user_prefs.mode in {"balanced", "custom"}:
+        recommendation_pool = _bounded_recommendation_candidates(graph, start, goal, user_prefs)
+        candidate_edges = {
+            tuple(option.edge_ids): graph.route_edges(option.edge_ids)
+            for option in [fastest, *recommendation_pool]
+        }
+        recommended = choose_reasonable_recommendation(
+            recommendation_pool,
+            fastest,
+            candidate_edges,
         )
-        candidates.append(build_route_option(graph, recommended_path, label, recommendation_prefs))
+        if tuple(recommended.edge_ids) != tuple(fastest.edge_ids):
+            candidates.append(
+                build_route_option(graph, recommended.edge_ids, "recommended", user_prefs)
+            )
+    elif user_prefs.mode != "fastest":
+        recommendation_prefs = AVOID_HILLS if user_prefs.mode == "avoid_hills" else user_prefs
+        if user_prefs.mode == "accessibility":
+            recommendation_prefs = replace(user_prefs, forbid_stairs=True)
+
+        recommended_path = _path_for_profile(graph, start, goal, recommendation_prefs)
+        if recommended_path is not None and tuple(recommended_path) != tuple(fastest_path):
+            label: Literal["recommended", "accessible"] = (
+                "accessible" if recommendation_prefs.mode == "accessibility" else "recommended"
+            )
+            candidates.append(
+                build_route_option(graph, recommended_path, label, recommendation_prefs)
+            )
 
     flattest_prefs = replace(
         AVOID_HILLS,
@@ -110,21 +176,16 @@ def generate_route_candidates(
     flattest_path = _path_for_profile(graph, start, goal, flattest_prefs)
     if flattest_path is not None:
         flattest = build_route_option(graph, flattest_path, "flattest", flattest_prefs)
-        if candidates:
-            fastest = candidates[0]
-            budget = fastest.metrics.time_s + user_prefs.max_extra_time_s_for_flatter_route
-            if flattest.metrics.time_s <= budget:
-                candidates.append(flattest)
-        else:
+        budget = fastest.metrics.time_s + user_prefs.max_extra_time_s_for_flatter_route
+        if (
+            tuple(flattest.edge_ids) not in {tuple(option.edge_ids) for option in candidates}
+            and flattest.metrics.time_s <= budget
+        ):
             candidates.append(flattest)
 
-    candidates = pareto_prune(_deduplicate(candidates))
-    fastest_option = next((option for option in candidates if option.label == "fastest"), None)
-    if fastest_option is None and fastest_path is not None:
-        fastest_option = build_route_option(graph, fastest_path, "fastest", FASTEST)
-
+    candidates = _deduplicate(candidates)
     for index, option in enumerate(candidates):
-        candidates[index].explanation = explain_route(option, fastest_option, user_prefs)
+        candidates[index].explanation = explain_route(option, fastest, user_prefs)
 
     label_order = {"recommended": 0, "accessible": 0, "fastest": 1, "flattest": 2, "balanced": 3}
     return sorted(

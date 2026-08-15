@@ -95,6 +95,10 @@ def _miles(distance_m: float) -> str:
     return f"{distance_m / 1609.344:.1f} mi"
 
 
+def _meters(distance_m: float) -> str:
+    return f"{round(distance_m)} m"
+
+
 def _time_tradeoff_text(delta_s: float) -> str:
     if delta_s <= 0:
         return "no slower"
@@ -103,6 +107,10 @@ def _time_tradeoff_text(delta_s: float) -> str:
     delta_min = round(delta_s / 60.0)
     minute_word = "minute" if delta_min == 1 else "minutes"
     return f"about {delta_min} {minute_word} slower"
+
+
+def _uphill_10pct_distance_m(option: RouteOption) -> float:
+    return sum(event.length_above_10pct_m for event in option.hill_events)
 
 
 def explain_route(option: RouteOption, fastest: RouteOption | None, prefs: UserPrefs) -> str:
@@ -120,10 +128,21 @@ def explain_route(option: RouteOption, fastest: RouteOption | None, prefs: UserP
     fastest_grade = _grade_pct(fastest.metrics.max_uphill_grade)
 
     if option.metrics.max_uphill_grade < fastest.metrics.max_uphill_grade:
+        option_above_10 = _uphill_10pct_distance_m(option)
+        fastest_above_10 = _uphill_10pct_distance_m(fastest)
+        if fastest_above_10 > option_above_10:
+            exposure_text = (
+                f" 10%+ uphill distance is {_meters(option_above_10)}, versus "
+                f"{_meters(fastest_above_10)} on the fastest route."
+            )
+        elif option_above_10 <= 10.0:
+            exposure_text = " Distance above 10% uphill is near zero."
+        else:
+            exposure_text = f" Distance above 10% uphill is {_meters(option_above_10)}."
         return (
             f"{base} This is {tradeoff} than the fastest route, "
             f"but avoids the steepest climb. Max uphill grade is {option_grade}, versus "
-            f"{fastest_grade} on the fastest route. Distance above 10% uphill is near zero."
+            f"{fastest_grade} on the fastest route.{exposure_text}"
         )
 
     return (

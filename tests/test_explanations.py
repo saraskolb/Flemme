@@ -79,6 +79,7 @@ def test_recommended_route_explanation_mentions_tradeoff_and_avoided_grade() -> 
 
     assert "1 minute slower" in explanation
     assert "12%" in explanation
+    assert "10%+ uphill distance is 0 m, versus 60 m" in explanation
 
 
 def test_sub_minute_tradeoff_does_not_say_zero_minutes() -> None:
@@ -107,3 +108,33 @@ def test_sub_minute_tradeoff_does_not_say_zero_minutes() -> None:
 
     assert "less than 1 minute slower" in explanation
     assert "0 minutes" not in explanation
+
+
+def test_recommended_route_explanation_reports_nonzero_steep_exposure() -> None:
+    nodes = {
+        1: Node(1, lon=0.0, lat=0.0, x=0.0, y=0.0),
+        2: Node(2, lon=1.0, lat=0.0, x=1.0, y=0.0),
+        3: Node(3, lon=2.0, lat=0.0, x=2.0, y=0.0),
+        4: Node(4, lon=3.0, lat=0.0, x=3.0, y=0.0),
+    }
+    steep = _steep_edge(1, 1, 2, length_m=100.0)
+    gentler = _steep_edge(2, 1, 3, length_m=40.0)
+    gentler.max_uphill_grade = 0.11
+    gentler.max_abs_grade = 0.11
+    gentler.sustained_uphill_grade_20m = 0.11
+    gentle_tail = Edge(
+        edge_id=3,
+        source=3,
+        target=4,
+        geometry=[(2.0, 0.0), (3.0, 0.0)],
+        length_m=100.0,
+        base_time_s=60.0,
+    )
+    graph = Graph(nodes=nodes, edges={1: steep, 2: gentler, 3: gentle_tail})
+    fastest = build_route_option(graph, [1], "fastest", FASTEST)
+    recommended = build_route_option(graph, [2, 3], "recommended", BALANCED)
+
+    explanation = explain_route(recommended, fastest, BALANCED)
+
+    assert "near zero" not in explanation
+    assert "10%+ uphill distance is 40 m, versus 100 m" in explanation

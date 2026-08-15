@@ -8,9 +8,9 @@ from app.core.models import Edge, RouteMetrics, UserPrefs
 
 FASTEST = UserPrefs(
     mode="fastest",
-    lambda_uphill=0.25,
+    lambda_uphill=0.00,
     lambda_downhill=0.10,
-    lambda_max_grade=0.25,
+    lambda_max_grade=0.00,
     lambda_safety=0.50,
     lambda_barrier=1.00,
     lambda_uncertainty=0.25,
@@ -18,7 +18,7 @@ FASTEST = UserPrefs(
 
 BALANCED = UserPrefs(
     mode="balanced",
-    lambda_uphill=1.50,
+    lambda_uphill=2.50,
     lambda_downhill=0.70,
     lambda_max_grade=1.00,
     lambda_safety=1.00,
@@ -48,6 +48,12 @@ ACCESSIBILITY = UserPrefs(
     hard_max_grade=0.083,
     forbid_stairs=True,
 )
+
+TINY_UPHILL_SPIKE_M = 5.0
+UPHILL_EXPOSURE_6PCT_WEIGHT = 0.80
+UPHILL_EXPOSURE_8PCT_WEIGHT = 0.75
+UPHILL_EXPOSURE_10PCT_WEIGHT = 1.50
+UPHILL_EXPOSURE_12PCT_WEIGHT = 2.00
 
 
 def prefs_for_mode(mode: str) -> UserPrefs:
@@ -90,6 +96,31 @@ def max_grade_penalty(
     return tau_s * x * x
 
 
+def _monotonic_uphill_exposure_lengths(edge: Edge) -> tuple[float, float, float, float]:
+    above_12 = max(0.0, edge.length_above_12pct_up_m)
+    above_10 = max(above_12, edge.length_above_10pct_up_m)
+    above_8 = max(above_10, edge.length_above_8pct_up_m)
+    above_6 = max(above_8, edge.length_above_6pct_up_m)
+    return above_6, above_8, above_10, above_12
+
+
+def effective_uphill_grade_for_cost(edge: Edge) -> float:
+    """Return the grade used for route scoring, not necessarily the reported max grade.
+
+    Very short grade spikes can come from stairs, curb cuts, DEM noise, or tiny graph
+    fragments. They should be visible in route details, but they should not dominate
+    hill-avoidance scoring unless the steep section lasts long enough to matter.
+    """
+    grade = max(
+        edge.max_uphill_grade,
+        edge.sustained_uphill_grade_20m,
+        edge.sustained_uphill_grade_50m,
+    )
+    if edge.length_above_10pct_up_m < TINY_UPHILL_SPIKE_M and grade > 0.10:
+        return 0.10
+    return grade
+
+
 def edge_time_s(edge: Edge, prefs: UserPrefs) -> float:
     precomputed = edge.base_time_s + edge.slope_time_s
     if precomputed > 0:
@@ -98,12 +129,19 @@ def edge_time_s(edge: Edge, prefs: UserPrefs) -> float:
 
 
 def uphill_discomfort(edge: Edge) -> float:
-    uphill_grade = max(edge.sustained_uphill_grade_20m, edge.sustained_uphill_grade_50m)
-    uphill_grade = max(uphill_grade, edge.max_uphill_grade)
-    steep_length = edge.length_above_6pct_up_m
+    uphill_grade = effective_uphill_grade_for_cost(edge)
+    above_6, above_8, above_10, above_12 = _monotonic_uphill_exposure_lengths(edge)
+    steep_length = above_6
     if steep_length <= 0 and uphill_grade > 0.06:
         steep_length = edge.length_m
-    return max(0.0, steep_length * uphill_penalty_curve(uphill_grade) * 0.20)
+    curve_penalty = steep_length * uphill_penalty_curve(uphill_grade) * 0.20
+    exposure_penalty = (
+        above_6 * UPHILL_EXPOSURE_6PCT_WEIGHT
+        + above_8 * UPHILL_EXPOSURE_8PCT_WEIGHT
+        + above_10 * UPHILL_EXPOSURE_10PCT_WEIGHT
+        + above_12 * UPHILL_EXPOSURE_12PCT_WEIGHT
+    )
+    return max(0.0, curve_penalty + exposure_penalty)
 
 
 def downhill_discomfort(edge: Edge) -> float:
@@ -113,7 +151,10 @@ def downhill_discomfort(edge: Edge) -> float:
 def edge_allowed(edge: Edge, prefs: UserPrefs) -> bool:
     if prefs.forbid_stairs and edge.stairs:
         return False
-    if prefs.hard_max_grade is not None and edge.max_uphill_grade > prefs.hard_max_grade:
+    if (
+        prefs.hard_max_grade is not None
+        and effective_uphill_grade_for_cost(edge) > prefs.hard_max_grade
+    ):
         return False
     if prefs.mode == "accessibility":
         if edge.stairs:
@@ -136,7 +177,11 @@ def edge_cost(edge: Edge, prefs: UserPrefs) -> float:
         edge_time_s(edge, prefs)
         + prefs.lambda_uphill * uphill_discomfort(edge)
         + prefs.lambda_max_grade
-        * max_grade_penalty(edge.max_uphill_grade, soft=prefs.soft_max_grade, hard=hard)
+        * max_grade_penalty(
+            effective_uphill_grade_for_cost(edge),
+            soft=prefs.soft_max_grade,
+            hard=hard,
+        )
         + prefs.lambda_safety * max(0.0, edge.traffic_safety_score)
         + prefs.lambda_barrier * max(0.0, edge.barrier_penalty)
         + prefs.lambda_uncertainty * max(0.0, edge.uncertainty_penalty)

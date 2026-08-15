@@ -72,6 +72,7 @@ def test_assign_edge_display_names_preserves_real_unnamed_route_features() -> No
             2: Node(2, lon=-122.0, lat=37.001),
             3: Node(3, lon=-121.999, lat=37.001),
             4: Node(4, lon=-121.998, lat=37.001),
+            5: Node(5, lon=-121.997, lat=37.001),
         },
         edges={
             1: Edge(
@@ -101,6 +102,15 @@ def test_assign_edge_display_names_preserves_real_unnamed_route_features() -> No
                 edge_type="residential",
                 source_tags={"highway": "residential"},
             ),
+            4: Edge(
+                edge_id=4,
+                source=4,
+                target=5,
+                geometry=[(-121.998, 37.001), (-121.997, 37.001)],
+                length_m=50.0,
+                edge_type="pedestrian",
+                source_tags={"highway": "pedestrian"},
+            ),
         },
     )
 
@@ -109,6 +119,7 @@ def test_assign_edge_display_names_preserves_real_unnamed_route_features() -> No
     assert graph.edges[1].display_name == "walking path"
     assert graph.edges[2].display_name == "alley"
     assert graph.edges[3].display_name == "unnamed street"
+    assert graph.edges[4].display_name == "pedestrian area"
 
 
 def test_apply_official_street_names_matches_unnamed_sidewalk_to_datasf_centerline() -> None:

@@ -22,6 +22,7 @@ WALKABLE_HIGHWAYS = {
 }
 
 BLOCKED_ACCESS_VALUES = {"no", "private", "customers", "permit"}
+BLOCKED_SERVICE_VALUES = {"drive-through", "driveway", "parking_aisle"}
 
 
 def is_walkable_way(tags: dict[str, Any]) -> bool:
@@ -31,6 +32,8 @@ def is_walkable_way(tags: dict[str, Any]) -> bool:
     if str(tags.get("access", "")).lower() in BLOCKED_ACCESS_VALUES:
         return False
     if str(tags.get("foot", "")).lower() in BLOCKED_ACCESS_VALUES:
+        return False
+    if highway == "service" and str(tags.get("service", "")).lower() in BLOCKED_SERVICE_VALUES:
         return False
     return not (str(tags.get("sidewalk", "")).lower() == "no" and highway not in {
         "footway",
