@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+from functools import lru_cache
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, status
 
 from app.api.schemas import (
     DebugRouteRequest,
+    GeocodeRequest,
+    GeocodeResponse,
     HealthResponse,
     RouteRequest,
     RouteResponse,
@@ -14,6 +17,7 @@ from app.api.schemas import (
 )
 from app.config import get_settings
 from app.core.alternatives import generate_route_candidates
+from app.core.models import Graph
 from app.core.snapping import snap_point_to_graph
 from app.db.repositories import (
     GraphRepository,
@@ -22,8 +26,14 @@ from app.db.repositories import (
     PostGISGraphRepository,
     SyntheticGraphRepository,
 )
+from app.geocoding import GeocodingLookupError, GeocodingServiceError, geocode_address
 
 router = APIRouter()
+
+
+@lru_cache(maxsize=4)
+def _load_json_graph(graph_json_path: str) -> Graph:
+    return JSONGraphRepository(Path(graph_json_path)).load_graph()
 
 
 def _production_repository() -> GraphRepository:
@@ -31,6 +41,13 @@ def _production_repository() -> GraphRepository:
     if settings.graph_json_path:
         return JSONGraphRepository(Path(settings.graph_json_path))
     return PostGISGraphRepository(settings.database_url)
+
+
+def _load_production_graph() -> Graph:
+    settings = get_settings()
+    if settings.graph_json_path:
+        return _load_json_graph(settings.graph_json_path)
+    return _production_repository().load_graph()
 
 
 @router.get("/health", response_model=HealthResponse)
@@ -46,11 +63,26 @@ def health() -> HealthResponse:
     )
 
 
+@router.post("/geocode", response_model=GeocodeResponse)
+def geocode(request: GeocodeRequest) -> GeocodeResponse:
+    try:
+        result = geocode_address(request.address)
+    except GeocodingLookupError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except GeocodingServiceError as exc:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
+    return GeocodeResponse(
+        query=result.query,
+        lat=result.lat,
+        lon=result.lon,
+        display_name=result.display_name,
+    )
+
+
 @router.post("/route", response_model=RouteResponse)
 def route(request: RouteRequest) -> RouteResponse:
-    repository = _production_repository()
     try:
-        graph = repository.load_graph()
+        graph = _load_production_graph()
     except GraphUnavailable as exc:
         raise HTTPException(
             status_code=status.HTTP_501_NOT_IMPLEMENTED,

@@ -135,6 +135,137 @@ def test_directions_absorb_short_cross_street_between_same_street() -> None:
     assert steps[0].distance_m == pytest.approx(167.0)
 
 
+def test_directions_absorb_short_turn_fragment_into_next_step() -> None:
+    steps = build_directions(
+        [
+            Edge(
+                edge_id=1,
+                source=1,
+                target=2,
+                geometry=[(-122.0, 37.0), (-121.999, 37.0)],
+                length_m=80.0,
+                street_name="Page Street",
+                base_time_s=60.0,
+            ),
+            Edge(
+                edge_id=2,
+                source=2,
+                target=3,
+                geometry=[(-121.999, 37.0), (-121.999, 36.99993)],
+                length_m=8.0,
+                street_name="Baker Street",
+                base_time_s=6.0,
+            ),
+            Edge(
+                edge_id=3,
+                source=3,
+                target=4,
+                geometry=[(-121.999, 36.99993), (-121.998, 36.99993)],
+                length_m=100.0,
+                street_name="Buena Vista Ave East",
+                base_time_s=75.0,
+            ),
+        ],
+        BALANCED,
+    )
+
+    assert len(steps) == 2
+    assert steps[1].street_name == "Buena Vista Ave East"
+    assert steps[1].distance_m == pytest.approx(108.0)
+    assert "Baker Street" not in steps[1].instruction
+
+
+def test_directions_absorb_run_of_short_turn_fragments_into_next_step() -> None:
+    steps = build_directions(
+        [
+            Edge(
+                edge_id=1,
+                source=1,
+                target=2,
+                geometry=[(-122.0, 37.0), (-121.999, 37.0)],
+                length_m=80.0,
+                street_name="Upper Terrace",
+                base_time_s=60.0,
+            ),
+            Edge(
+                edge_id=2,
+                source=2,
+                target=3,
+                geometry=[(-121.999, 37.0), (-121.99898, 37.0)],
+                length_m=2.0,
+                street_name="Loma Vista Terrace",
+                base_time_s=2.0,
+            ),
+            Edge(
+                edge_id=3,
+                source=3,
+                target=4,
+                geometry=[(-121.99898, 37.0), (-121.99898, 36.99993)],
+                length_m=8.0,
+                street_name="Masonic Avenue",
+                base_time_s=6.0,
+            ),
+            Edge(
+                edge_id=4,
+                source=4,
+                target=5,
+                geometry=[(-121.99898, 36.99993), (-121.9989, 36.99993)],
+                length_m=10.0,
+                street_name="Upper Terrace",
+                base_time_s=7.0,
+            ),
+            Edge(
+                edge_id=5,
+                source=5,
+                target=6,
+                geometry=[(-121.9989, 36.99993), (-121.9979, 36.99993)],
+                length_m=88.0,
+                street_name="Loma Vista Terrace",
+                base_time_s=66.0,
+            ),
+        ],
+        BALANCED,
+    )
+
+    assert len(steps) == 2
+    assert steps[1].street_name == "Loma Vista Terrace"
+    assert steps[1].distance_m == pytest.approx(108.0)
+    assert "Masonic Avenue" not in steps[1].instruction
+
+
+def test_named_connector_step_keeps_its_own_street_name() -> None:
+    steps = build_directions(
+        [
+            Edge(
+                edge_id=1,
+                source=1,
+                target=2,
+                geometry=[(-122.0, 37.0), (-122.0, 36.9999)],
+                length_m=11.0,
+                edge_type="footway",
+                display_name="Broderick Street",
+                name_source="datasf_centerline",
+                base_time_s=8.0,
+            ),
+            Edge(
+                edge_id=2,
+                source=2,
+                target=3,
+                geometry=[(-122.0, 36.9999), (-121.999, 36.9999)],
+                length_m=80.0,
+                street_name="Haight Street",
+                display_name="Haight Street",
+                base_time_s=60.0,
+            ),
+        ],
+        BALANCED,
+    )
+
+    assert steps[0].instruction.startswith("Walk south on Broderick Street")
+    assert steps[0].street_name == "Broderick Street"
+    assert steps[1].street_name == "Haight Street"
+
+
 def test_directions_preserve_real_unnamed_paths_alleys_and_streets() -> None:
     steps = build_directions(
         [

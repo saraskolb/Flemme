@@ -72,6 +72,10 @@ def _group_label_text(group: list[Edge]) -> str | None:
     return edge_label(group[0]).text
 
 
+def _dominant_label_edge(edges: list[Edge]) -> Edge:
+    return max(edges, key=lambda edge: edge.length_m)
+
+
 def _group_distance_m(group: list[Edge]) -> float:
     return sum(edge.length_m for edge in group)
 
@@ -99,6 +103,30 @@ def _absorb_short_cross_street_groups(groups: list[list[Edge]]) -> list[list[Edg
     return simplified
 
 
+def _absorb_short_turn_fragments(groups: list[list[Edge]]) -> list[list[Edge]]:
+    if len(groups) <= 2:
+        return groups
+
+    simplified: list[list[Edge]] = []
+    index = 0
+    while index < len(groups):
+        is_interior = 0 < index < len(groups) - 1
+        if is_interior and _group_distance_m(groups[index]) <= SHORT_CROSSING_GROUP_M:
+            short_run: list[Edge] = []
+            while (
+                index < len(groups) - 1
+                and _group_distance_m(groups[index]) <= SHORT_CROSSING_GROUP_M
+            ):
+                short_run.extend(groups[index])
+                index += 1
+            simplified.append([*short_run, *groups[index]])
+            index += 1
+            continue
+        simplified.append(groups[index])
+        index += 1
+    return simplified
+
+
 def _step_from_edges(
     edges: list[Edge],
     prefs: UserPrefs,
@@ -108,7 +136,7 @@ def _step_from_edges(
 ) -> tuple[DirectionStep, float]:
     geometry = _merge_geometry(edges)
     bearing = _bearing(geometry)
-    label = edge_label(edges[0])
+    label = edge_label(_dominant_label_edge(edges))
     distance_m = sum(edge.length_m for edge in edges)
     time_s = sum(edge_time_s(edge, prefs) for edge in edges)
     gain_m = sum(edge.gain_m for edge in edges)
@@ -136,7 +164,9 @@ def _step_from_edges(
     return (
         DirectionStep(
             instruction=instruction,
-            street_name=toward_name if label.kind == "connector" and toward_name else label.text,
+            street_name=toward_name
+            if label.kind == "connector" and not label.text and toward_name
+            else label.text,
             distance_m=distance_m,
             time_s=time_s,
             gain_m=gain_m,
@@ -167,6 +197,7 @@ def build_directions(route_edges: list[Edge], prefs: UserPrefs) -> list[Directio
         else:
             groups.append([edge])
     groups = _absorb_short_cross_street_groups(groups)
+    groups = _absorb_short_turn_fragments(groups)
 
     steps: list[DirectionStep] = []
     previous_bearing: float | None = None

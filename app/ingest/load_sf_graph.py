@@ -15,6 +15,7 @@ from app.ingest.elevation import (
     ElevationProvider,
     FlatElevationProvider,
     OpenMeteoElevationProvider,
+    RasterElevationProvider,
     USGSElevationProvider,
 )
 from app.ingest.graph_builder import build_directed_graph
@@ -52,10 +53,11 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--overpass-endpoint", default="https://overpass-api.de/api/interpreter")
     parser.add_argument(
         "--elevation-provider",
-        choices=["open-meteo", "usgs", "flat"],
+        choices=["dem", "open-meteo", "usgs", "flat"],
         default="open-meteo",
         help="Use open-meteo for fast bootstrap, usgs for slower high-resolution sampling.",
     )
+    parser.add_argument("--dem-path", type=Path)
     parser.add_argument(
         "--elevation-cache",
         type=Path,
@@ -106,6 +108,10 @@ def _bbox(args: argparse.Namespace) -> dict[str, float]:
 def _elevation_provider(args: argparse.Namespace) -> ElevationProvider:
     if args.elevation_provider == "flat":
         return FlatElevationProvider()
+    if args.elevation_provider == "dem":
+        if args.dem_path is None:
+            raise ValueError("--dem-path is required when --elevation-provider dem.")
+        return RasterElevationProvider(args.dem_path)
     if args.elevation_provider == "open-meteo":
         return OpenMeteoElevationProvider(
             cache_path=args.elevation_cache.with_name("open_meteo_elevation.json"),

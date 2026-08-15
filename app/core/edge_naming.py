@@ -42,7 +42,6 @@ SUFFIX_EXPANSIONS = {
 }
 ROAD_TYPES = {
     "living_street",
-    "pedestrian",
     "primary",
     "residential",
     "secondary",
@@ -95,6 +94,8 @@ def fallback_display_name(edge: Edge) -> tuple[str, str]:
         return "stairs", "generic_stairs"
     if is_alley(edge):
         return "alley", "generic_alley"
+    if edge.edge_type == "pedestrian":
+        return "pedestrian area", "generic_pedestrian_area"
     if edge.edge_type in {"path", "footway"}:
         return "walking path", "generic_path"
     if edge.edge_type in ROAD_TYPES:
@@ -138,6 +139,8 @@ def edge_label(edge: Edge) -> EdgeLabel:
         return EdgeLabel(label_text, "stairs", "stairs")
     if is_alley(edge):
         return EdgeLabel(label_text, "alley", "alley")
+    if edge.edge_type == "pedestrian":
+        return EdgeLabel(label_text, "pedestrian_area", "pedestrian_area")
     if edge.edge_type in {"path", "footway"}:
         return EdgeLabel(label_text, "walking_path", "path")
     if edge.edge_type in ROAD_TYPES:

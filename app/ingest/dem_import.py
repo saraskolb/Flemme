@@ -2,18 +2,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from app.ingest.elevation import USGSElevationProvider
+from app.ingest.elevation import RasterElevationProvider, USGSElevationProvider
 
 
-def sample_dem_elevations(dem_path: Path, points_xy: list[tuple[float, float]]) -> list[float]:
-    """Sample a local DEM raster at projected points.
-
-    TODO:
-    - Open a local DEM with rasterio.
-    - Sample elevation at densified edge points.
-    - Return elevation values plus confidence metadata.
-    """
-    raise NotImplementedError("DEM sampling is intentionally stubbed in the first slice.")
+def sample_dem_elevations(dem_path: Path, points_lat_lon: list[tuple[float, float]]) -> list[float]:
+    """Sample a local DEM raster at WGS84 lat/lon points."""
+    return RasterElevationProvider(dem_path).elevations(points_lat_lon)
 
 
 def sample_usgs_epqs_elevations(

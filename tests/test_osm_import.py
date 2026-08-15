@@ -6,9 +6,13 @@ from app.ingest.osm_import import is_walkable_way, segments_from_overpass
 def test_walkable_way_filter_accepts_pedestrian_usable_roads() -> None:
     assert is_walkable_way({"highway": "footway"})
     assert is_walkable_way({"highway": "residential"})
+    assert is_walkable_way({"highway": "service", "service": "alley"})
     assert not is_walkable_way({"highway": "motorway"})
     assert not is_walkable_way({"highway": "residential", "foot": "no"})
     assert not is_walkable_way({"highway": "residential", "sidewalk": "no"})
+    assert not is_walkable_way({"highway": "service", "service": "drive-through"})
+    assert not is_walkable_way({"highway": "service", "service": "driveway"})
+    assert not is_walkable_way({"highway": "service", "service": "parking_aisle"})
 
 
 def test_segments_from_overpass_emits_node_pair_segments() -> None:
