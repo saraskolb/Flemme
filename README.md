@@ -115,6 +115,21 @@ Then open `http://<your-mac-ip>:8002/` on the phone. GPS permissions generally
 require localhost or HTTPS; use a tunnel such as Cloudflare Tunnel or Tailscale
 Serve when you need a true installable HTTPS phone build away from localhost.
 
+For a native iPhone field-testing shell, open
+`ios/Flemme/Flemme.xcodeproj` in Xcode. The app is a minimal SwiftUI wrapper
+around the local Flemme UI and currently loads
+`https://macbook-pro.tail6ab8cd.ts.net/`, which should be served from the Mac:
+
+```bash
+HOST=0.0.0.0 PORT=8005 scripts/run_local_sf_ui.sh
+/Applications/Tailscale.app/Contents/MacOS/Tailscale serve --bg 8005
+```
+
+Keep the Mac awake, keep Tailscale connected on the iPhone, then build and run
+the `Flemme` scheme from Xcode on a trusted iPhone. The routing algorithm and
+full city graph still run on the Mac backend; the iPhone app provides the
+walking UI, map, GPS prompt, and route feedback controls.
+
 Health check:
 
 ```bash
