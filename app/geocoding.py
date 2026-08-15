@@ -72,6 +72,33 @@ LOCAL_HINTS: tuple[tuple[tuple[str, ...], GeocodeResult], ...] = (
         ),
     ),
     (
+        ("whole", "foods", "stanyan"),
+        GeocodeResult(
+            query="Whole Foods Market Haight Street, San Francisco, CA",
+            lat=37.769562,
+            lon=-122.452782,
+            display_name="Whole Foods Market, 690 Stanyan Street, San Francisco, CA",
+        ),
+    ),
+    (
+        ("whole", "foods", "stayan"),
+        GeocodeResult(
+            query="Whole Foods Market Haight Street, San Francisco, CA",
+            lat=37.769562,
+            lon=-122.452782,
+            display_name="Whole Foods Market, 690 Stanyan Street, San Francisco, CA",
+        ),
+    ),
+    (
+        ("whole", "foods", "haight"),
+        GeocodeResult(
+            query="Whole Foods Market Haight Street, San Francisco, CA",
+            lat=37.769562,
+            lon=-122.452782,
+            display_name="Whole Foods Market, 690 Stanyan Street, San Francisco, CA",
+        ),
+    ),
+    (
         ("duboce", "park", "cafe"),
         GeocodeResult(
             query="Duboce Park Cafe, San Francisco, CA",
