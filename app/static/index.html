@@ -3,10 +3,10 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="theme-color" content="#b91c62" />
+    <meta name="theme-color" content="#171416" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <title>flemme</title>
     <link rel="manifest" href="/static/manifest.webmanifest" />
     <link rel="icon" href="/static/icon.svg" type="image/svg+xml" />
@@ -31,13 +31,19 @@
         </button>
       </header>
 
-      <button id="map-locate-button" class="map-action icon-button" type="button" aria-label="Center current location">⌖</button>
+      <button id="map-locate-button" class="map-action icon-button" type="button" aria-label="Center current location">
+        <svg class="location-target-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M12 3v3M12 18v3M3 12h3M18 12h3"></path>
+          <circle class="location-target-ring" cx="12" cy="12" r="7"></circle>
+        </svg>
+      </button>
 
       <section id="plan-view" class="app-view plan-view" aria-label="Plan a route">
         <div class="surface plan-sheet">
           <div class="sheet-grabber" aria-hidden="true"></div>
-          <p class="eyebrow">Walk San Francisco your way</p>
-          <h1>Where are you going?</h1>
+          <p class="eyebrow">A better way across SF</p>
+          <h1>Where to?</h1>
 
           <form id="route-form" novalidate>
             <div class="location-stack">
@@ -48,11 +54,18 @@
                   id="origin-address"
                   name="origin-address"
                   autocomplete="street-address"
+                  enterkeyhint="next"
                   placeholder="Current location or address"
                   aria-autocomplete="list"
                   aria-controls="origin-suggestions"
                 />
-                <button id="use-location-button" class="inline-location-button" type="button" aria-label="Use current location as start">⌖</button>
+                <button id="use-location-button" class="inline-location-button" type="button" aria-label="Use current location as start">
+                  <svg class="location-target-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <circle cx="12" cy="12" r="3"></circle>
+                    <path d="M12 3v3M12 18v3M3 12h3M18 12h3"></path>
+                    <circle class="location-target-ring" cx="12" cy="12" r="7"></circle>
+                  </svg>
+                </button>
                 <div id="origin-suggestions" class="suggestions" role="listbox"></div>
               </div>
               <div class="location-divider" aria-hidden="true"></div>
@@ -63,6 +76,7 @@
                   id="destination-address"
                   name="destination-address"
                   autocomplete="street-address"
+                  enterkeyhint="go"
                   placeholder="Search an address or place"
                   aria-autocomplete="list"
                   aria-controls="destination-suggestions"
@@ -75,21 +89,16 @@
               <legend>Walking preference</legend>
               <label class="preference-chip">
                 <input type="radio" name="mode" value="balanced" checked />
-                <span>Gentle hills</span>
+                <span>Avoid hills</span>
               </label>
               <label class="preference-chip">
                 <input type="radio" name="mode" value="fastest" />
                 <span>Fastest</span>
               </label>
-              <label class="preference-chip">
-                <input type="radio" name="mode" value="accessibility" />
-                <span>Avoid stairs</span>
-              </label>
             </fieldset>
 
             <button id="route-button" class="primary-button" type="submit">
-              <span>Find routes</span>
-              <span aria-hidden="true">→</span>
+              <span>Find my walk</span>
             </button>
             <p id="plan-message" class="inline-message" role="status"></p>
           </form>
@@ -98,12 +107,22 @@
 
       <section id="compare-view" class="app-view compare-view" aria-label="Compare routes" hidden>
         <div class="route-query-bar surface">
-          <button id="edit-route-button" class="bare-icon-button" type="button" aria-label="Edit route">‹</button>
+          <button id="edit-route-button" class="bare-icon-button" type="button" aria-label="Edit route">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path d="m15 18-6-6 6-6"></path>
+            </svg>
+          </button>
           <button id="route-query-summary" class="route-query-summary" type="button">
             <strong id="query-destination">Destination</strong>
-            <span id="query-preference">Gentle hills</span>
+            <span id="query-preference">Avoid hills</span>
           </button>
-          <button id="compare-menu-button" class="bare-icon-button" type="button" aria-label="Route options">•••</button>
+          <button id="compare-menu-button" class="bare-icon-button" type="button" aria-label="Route options">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <circle cx="5" cy="12" r="1.25"></circle>
+              <circle cx="12" cy="12" r="1.25"></circle>
+              <circle cx="19" cy="12" r="1.25"></circle>
+            </svg>
+          </button>
         </div>
 
         <section id="query-panel" class="surface results-sheet" aria-label="Route choices">
@@ -151,12 +170,21 @@
 
       <section id="walk-view" class="app-view walk-view" aria-label="Walking navigation" hidden>
         <div class="walk-banner">
-          <span id="maneuver-icon" class="maneuver-icon" aria-hidden="true">↑</span>
+          <span id="maneuver-icon" class="maneuver-icon" aria-hidden="true"></span>
           <div>
             <span id="maneuver-distance" class="maneuver-distance">Starting route</span>
             <strong id="next-step">Follow the route</strong>
           </div>
-          <button id="mute-button" class="walk-icon-button" type="button" aria-label="Mute guidance">◖</button>
+          <button id="mute-button" class="walk-icon-button" type="button" aria-label="Mute guidance" aria-pressed="false">
+            <svg class="sound-on-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path d="M11 6 7.5 9H4v6h3.5l3.5 3V6Z"></path>
+              <path d="M15 9.25a4 4 0 0 1 0 5.5M17.5 6.75a7.5 7.5 0 0 1 0 10.5"></path>
+            </svg>
+            <svg class="sound-off-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path d="M11 6 7.5 9H4v6h3.5l3.5 3V6Z"></path>
+              <path d="m15 10 5 5M20 10l-5 5"></path>
+            </svg>
+          </button>
         </div>
 
         <div class="surface walk-footer">

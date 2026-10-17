@@ -76,12 +76,12 @@ const state = {
   muted: false,
 };
 
-const MANEUVER_ICONS = {
-  depart: "↑",
-  continue: "↑",
-  turn_left: "↰",
-  turn_right: "↱",
-  u_turn: "↶",
+const MANEUVER_PATHS = {
+  depart: "M12 20V4 M6.5 9.5 12 4l5.5 5.5",
+  continue: "M12 20V4 M6.5 9.5 12 4l5.5 5.5",
+  turn_left: "M20 18v-3a6 6 0 0 0-6-6H5 M9 5 5 9l4 4",
+  turn_right: "M4 18v-3a6 6 0 0 1 6-6h9 M15 5l4 4-4 4",
+  u_turn: "M18 20v-8a6 6 0 0 0-12 0v2 M2 10l4 4 4-4",
 };
 
 function selectedRoute() {
@@ -94,17 +94,13 @@ function selectedMode() {
 
 function modeLabel(mode = selectedMode()) {
   return {
-    balanced: "Gentle hills",
+    balanced: "Avoid hills",
     fastest: "Fastest",
-    accessibility: "Avoid stairs",
     avoid_hills: "Avoid hills",
   }[mode] || "Custom walk";
 }
 
 function modePreferences(mode = selectedMode()) {
-  if (mode === "accessibility") {
-    return { mode, forbid_stairs: true };
-  }
   return { mode };
 }
 
@@ -361,6 +357,13 @@ function renderSelectedRoute() {
 
 function renderReason(route) {
   routeReason.replaceChildren();
+  const icon = document.createElement("span");
+  icon.className = "route-reason-icon";
+  const iconSvg = svgElement("svg", { viewBox: "0 0 24 24", "aria-hidden": "true" });
+  iconSvg.append(svgElement("path", { d: "M5 16.5 10 11l3.5 3.5L19 8" }));
+  iconSvg.append(svgElement("path", { d: "M14.5 8H19v4.5" }));
+  icon.append(iconSvg);
+  const copy = document.createElement("div");
   const heading = document.createElement("strong");
   const body = document.createElement("span");
   const comparison = route.comparison;
@@ -377,7 +380,8 @@ function renderReason(route) {
     heading.textContent = route.recommendation.title;
     body.textContent = route.recommendation.summary;
   }
-  routeReason.append(heading, body);
+  copy.append(heading, body);
+  routeReason.append(icon, copy);
 }
 
 function renderWarnings(warnings) {
@@ -394,6 +398,16 @@ function svgElement(tag, attributes = {}) {
   const element = document.createElementNS("http://www.w3.org/2000/svg", tag);
   Object.entries(attributes).forEach(([key, value]) => element.setAttribute(key, String(value)));
   return element;
+}
+
+function maneuverSvg(maneuver) {
+  const svg = svgElement("svg", {
+    viewBox: "0 0 24 24",
+    class: "maneuver-glyph",
+    "aria-hidden": "true",
+  });
+  svg.append(svgElement("path", { d: MANEUVER_PATHS[maneuver] || MANEUVER_PATHS.continue }));
+  return svg;
 }
 
 function renderSlope(route) {
@@ -443,11 +457,12 @@ function renderDirections(route) {
     item.className = "direction-step";
     const icon = document.createElement("span");
     icon.className = "direction-icon";
-    icon.textContent = MANEUVER_ICONS[step.maneuver] || "↑";
+    icon.append(maneuverSvg(step.maneuver));
     const content = document.createElement("div");
     const instruction = document.createElement("strong");
     instruction.textContent = step.instruction;
     const metadata = document.createElement("span");
+    metadata.className = "direction-meta";
     metadata.textContent = `${meters(step.distance_m)} · ${minutes(step.time_s)}`;
     content.append(instruction, metadata);
     item.append(icon, content);
@@ -657,7 +672,7 @@ function updateWalkProgress() {
     const remainingStepM = Math.max(0, step.end_distance_m - progressM);
     maneuverDistance.textContent = remainingStepM < 20 ? "Now" : `In ${meters(remainingStepM)}`;
     nextStepElement.textContent = step.instruction;
-    maneuverIcon.textContent = MANEUVER_ICONS[step.maneuver] || "↑";
+    maneuverIcon.replaceChildren(maneuverSvg(step.maneuver));
   }
 
   const remainingM = Math.max(0, route.metrics.distance_m - progressM);
@@ -839,12 +854,20 @@ function finishSheetDrag(event) {
 }
 
 function updateViewport() {
-  const visibleHeight = window.visualViewport?.height || window.innerHeight;
+  const visibleViewport = window.visualViewport;
+  const visibleHeight = visibleViewport?.height || window.innerHeight;
+  const viewportTop = visibleViewport?.offsetTop || 0;
   document.documentElement.style.setProperty("--app-height", `${window.innerHeight}px`);
   document.documentElement.style.setProperty("--visible-height", `${visibleHeight}px`);
+  document.documentElement.style.setProperty("--viewport-top", `${viewportTop}px`);
   const editing = window.matchMedia("(max-width: 520px)").matches
     && document.activeElement?.matches?.("input, textarea");
   document.body.classList.toggle("is-editing", Boolean(editing));
+  if (editing) {
+    window.requestAnimationFrame(() => {
+      document.activeElement?.scrollIntoView?.({ block: "nearest", inline: "nearest" });
+    });
+  }
   if (state.view === "compare" && resultsSheet.classList.contains("is-collapsed")) {
     setSheetOffset(collapsedSheetOffset());
   }
@@ -900,7 +923,8 @@ document.querySelector("#report-button").addEventListener("click", openFeedback)
 document.querySelector("#end-walk-button").addEventListener("click", endWalking);
 document.querySelector("#mute-button").addEventListener("click", (event) => {
   state.muted = !state.muted;
-  event.currentTarget.textContent = state.muted ? "◗" : "◖";
+  event.currentTarget.setAttribute("aria-pressed", String(state.muted));
+  event.currentTarget.setAttribute("aria-label", state.muted ? "Unmute guidance" : "Mute guidance");
   showToast(state.muted ? "Guidance muted" : "Guidance unmuted");
 });
 
@@ -937,7 +961,14 @@ window.visualViewport?.addEventListener("scroll", updateViewport);
 installSuggestions(originInput, document.querySelector("#origin-suggestions"), "origin");
 installSuggestions(destinationInput, document.querySelector("#destination-suggestions"), "destination");
 
-if ("serviceWorker" in navigator) {
+originInput.addEventListener("keydown", (event) => {
+  if (event.key === "Enter" && !destinationInput.value.trim()) {
+    event.preventDefault();
+    destinationInput.focus();
+  }
+});
+
+if ("serviceWorker" in navigator && !navigator.userAgent.includes("FlemmeNative")) {
   window.addEventListener("load", () => {
     navigator.serviceWorker.register("/static/service-worker.js").catch(() => {});
   });

@@ -150,7 +150,9 @@ HOST=0.0.0.0 PORT=8005 scripts/run_local_sf_ui.sh
 Keep the Mac awake, keep Tailscale connected on the iPhone, then build and run
 the `Flemme` scheme from Xcode on a trusted iPhone. The routing algorithm and
 full city graph still run on the Mac backend; the iPhone app provides the
-walking UI, map, GPS prompt, and route feedback controls.
+walking UI, map, GPS prompt, and route feedback controls. The native wrapper
+uses a fresh web session and retries its initial load so starting Flemme before
+Tailscale finishes connecting does not leave the app stuck offline.
 
 Health check:
 

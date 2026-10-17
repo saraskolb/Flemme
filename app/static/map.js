@@ -1,8 +1,8 @@
 const ROUTE_COLORS = {
-  recommended: "#b91c62",
-  fastest: "#55606d",
-  flattest: "#18805c",
-  accessible: "#6d3fc0",
+  recommended: "#ff5da2",
+  fastest: "#b9adb4",
+  flattest: "#4fd2a1",
+  accessible: "#ae82ff",
 };
 
 export class FlemmeMap {
@@ -90,7 +90,7 @@ export class FlemmeMap {
     }
     latLngs.forEach((point) => bounds.extend(point));
     const outline = window.L.polyline(latLngs, {
-      color: "#ffffff",
+      color: "#241f22",
       opacity: selected ? 0.96 : 0.76,
       weight: selected ? 11 : 8,
       lineCap: "round",
@@ -98,7 +98,7 @@ export class FlemmeMap {
       interactive: false,
     }).addTo(this.map);
     const line = window.L.polyline(latLngs, {
-      color: selected ? (ROUTE_COLORS[route.label] || ROUTE_COLORS.recommended) : "#8a8187",
+      color: selected ? (ROUTE_COLORS[route.label] || ROUTE_COLORS.recommended) : "#9d9298",
       opacity: selected ? 0.98 : 0.55,
       weight: selected ? 6 : 4,
       dashArray: selected ? null : "2 9",
@@ -124,21 +124,21 @@ export class FlemmeMap {
     const end = [endLat, endLon];
     bounds.extend(start);
     bounds.extend(end);
+    const startIcon = window.L.divIcon({
+      className: "route-endpoint-icon",
+      html: '<span class="location-marker origin-marker" aria-hidden="true"></span>',
+      iconSize: [28, 28],
+      iconAnchor: [14, 14],
+    });
+    const endIcon = window.L.divIcon({
+      className: "route-endpoint-icon",
+      html: '<span class="location-marker destination-marker" aria-hidden="true"></span>',
+      iconSize: [28, 28],
+      iconAnchor: [14, 14],
+    });
     this.layers.push(
-      window.L.circleMarker(start, {
-        color: "#ffffff",
-        fillColor: "#18805c",
-        fillOpacity: 1,
-        radius: 8,
-        weight: 3,
-      }).addTo(this.map),
-      window.L.circleMarker(end, {
-        color: "#ffffff",
-        fillColor: "#b91c62",
-        fillOpacity: 1,
-        radius: 8,
-        weight: 3,
-      }).addTo(this.map)
+      window.L.marker(start, { icon: startIcon, keyboard: false }).addTo(this.map),
+      window.L.marker(end, { icon: endIcon, keyboard: false }).addTo(this.map)
     );
   }
 
@@ -160,9 +160,9 @@ export class FlemmeMap {
     if (this.currentPosition.accuracy_m) {
       this.positionLayers.push(
         window.L.circle(point, {
-          color: "#b91c62",
-          fillColor: "#b91c62",
-          fillOpacity: 0.08,
+          color: "#72a3ff",
+          fillColor: "#72a3ff",
+          fillOpacity: 0.14,
           radius: this.currentPosition.accuracy_m,
           weight: 1,
         }).addTo(this.map)
@@ -170,8 +170,8 @@ export class FlemmeMap {
     }
     this.positionLayers.push(
       window.L.circleMarker(point, {
-        color: "#ffffff",
-        fillColor: "#b91c62",
+        color: "#241f22",
+        fillColor: "#72a3ff",
         fillOpacity: 1,
         radius: 8,
         weight: 4,
@@ -192,9 +192,9 @@ export class FlemmeMap {
 
   fitOptions() {
     if (window.matchMedia("(min-width: 900px)").matches) {
-      return { paddingTopLeft: [450, 70], paddingBottomRight: [42, 42] };
+      return { paddingTopLeft: [450, 70], paddingBottomRight: [42, 42], maxZoom: 16 };
     }
-    return { paddingTopLeft: [28, 110], paddingBottomRight: [28, 320] };
+    return { paddingTopLeft: [28, 110], paddingBottomRight: [28, 320], maxZoom: 15 };
   }
 
   drawFallback(label) {

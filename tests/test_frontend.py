@@ -11,8 +11,9 @@ def test_frontend_shell_is_served() -> None:
     response = client.get("/")
 
     assert response.status_code == 200
-    assert "Where are you going?" in response.text
-    assert 'content="#b91c62"' in response.text
+    assert "Where to?" in response.text
+    assert "Find my walk" in response.text
+    assert 'content="#171416"' in response.text
     assert "origin-address" in response.text
     assert "sheet-handle" in response.text
     assert "Collapse route details" in response.text
@@ -21,7 +22,8 @@ def test_frontend_shell_is_served() -> None:
     assert "use-location-button" in response.text
     assert "Use current location as start" in response.text
     assert "next-step" in response.text
-    assert "Gentle hills" in response.text
+    assert "Avoid hills" in response.text
+    assert "Avoid stairs" not in response.text
     assert "Start walking" in response.text
     assert "Route feedback" in response.text
     assert 'type="module" src="/static/app.js"' in response.text
@@ -66,13 +68,15 @@ def test_frontend_pwa_assets_are_served() -> None:
     assert manifest.status_code == 200
     assert manifest.json()["short_name"] == "flemme"
     assert manifest.json()["display"] == "standalone"
-    assert manifest.json()["theme_color"] == "#b91c62"
+    assert manifest.json()["theme_color"] == "#171416"
     assert worker.status_code == 200
-    assert "flemme-shell-v14" in worker.text
+    assert "flemme-shell-v26" in worker.text
     assert "/static/api.js" in worker.text
     assert "/static/map.js" in worker.text
     assert styles.status_code == 200
-    assert "--brand: #b91c62" in styles.text
+    assert "--brand: #ff5da2" in styles.text
+    assert "text-transform: lowercase" in styles.text
+    assert "text-transform: uppercase" in styles.text
     assert ".plan-sheet" in styles.text
     assert ".route-query-bar" in styles.text
     assert ".route-reason" in styles.text
@@ -84,7 +88,7 @@ def test_frontend_pwa_assets_are_served() -> None:
     assert "border-radius: 999px" in styles.text
     assert icon.status_code == 200
     assert 'aria-label="flemme"' in icon.text
-    assert 'fill="#b91c62"' in icon.text
+    assert 'fill="#bf1d62"' in icon.text
 
 
 def test_geocode_endpoint_resolves_local_validation_intersection() -> None:
