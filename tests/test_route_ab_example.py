@@ -39,10 +39,20 @@ def test_debug_synthetic_route_endpoint() -> None:
     assert payload["graph_version"] == "dev-synthetic-001"
     assert by_label["fastest"]["edge_ids"] == [101, 102, 103]
     assert by_label["recommended"]["edge_ids"] == [201, 202]
-    assert by_label["recommended"]["directions"][0]["instruction"].startswith(
-        "Walk"
-    )
+    assert by_label["recommended"]["directions"][0]["instruction"].startswith("Walk")
     assert "16%" in by_label["recommended"]["explanation"]
+    assert by_label["recommended"]["route_id"].startswith("route_")
+    assert by_label["recommended"]["title"] == "Gentler route"
+    assert by_label["recommended"]["badge"] == "Best balance"
+    assert by_label["recommended"]["comparison"]["extra_time_s"] == pytest.approx(60.0)
+    assert by_label["recommended"]["comparison"]["avoided_10pct_uphill_m"] > 0
+    assert "avoids_steepest_climb" in by_label["recommended"]["recommendation"]["reason_codes"]
+    assert by_label["recommended"]["bounds"]["south"] <= by_label["recommended"]["bounds"]["north"]
+    assert by_label["recommended"]["directions"][0]["step_id"].startswith("step_")
+    assert by_label["recommended"]["directions"][0]["start_distance_m"] == 0
+    assert by_label["recommended"]["directions"][0]["end_distance_m"] > 0
+    assert by_label["recommended"]["directions"][0]["maneuver"] == "depart"
+    assert by_label["recommended"]["data_quality"]["elevation_coverage"] >= 0
 
 
 def test_production_route_endpoint_is_future_shaped_not_synthetic() -> None:

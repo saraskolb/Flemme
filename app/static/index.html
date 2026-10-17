@@ -3,140 +3,216 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="theme-color" content="#f9a8d4" />
+    <meta name="theme-color" content="#b91c62" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <title>flemme</title>
     <link rel="manifest" href="/static/manifest.webmanifest" />
     <link rel="icon" href="/static/icon.svg" type="image/svg+xml" />
-    <link
-      rel="stylesheet"
-      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-    />
+    <link rel="preconnect" href="https://tile.openstreetmap.org" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="/static/styles.css" />
   </head>
   <body>
-    <main class="app-shell">
-      <header class="top-bar">
-        <h1>flemme</h1>
-        <div class="top-status">
-          <span id="health-pill" class="status-pill">Graph</span>
-          <span id="gps-status" class="gps-status">GPS idle</span>
-        </div>
-      </header>
-
+    <main id="app" class="app-shell" data-view="plan" aria-live="polite">
       <section class="map-panel" aria-label="Route map">
         <div id="map" class="route-map" role="img" aria-label="Route map"></div>
       </section>
 
-      <section class="query-panel" aria-label="Route query">
-        <button
-          id="sheet-handle"
-          class="sheet-handle"
-          type="button"
-          aria-label="Collapse directions panel"
-          aria-expanded="true"
-        ></button>
+      <header id="brand-bar" class="brand-bar">
+        <button class="wordmark" type="button" data-view-target="plan" aria-label="Flemme home">
+          <span class="wordmark-mark" aria-hidden="true">ƒ</span>
+          <span>flemme</span>
+        </button>
+        <button id="diagnostics-button" class="icon-button" type="button" aria-label="App status">
+          <span class="status-dot" aria-hidden="true"></span>
+          <span class="sr-only">App status</span>
+        </button>
+      </header>
 
-        <form id="route-form" class="route-form">
-          <div class="address-grid">
-            <label class="wide-field location-field">
-              <span>Start</span>
-              <div class="input-action-row">
+      <button id="map-locate-button" class="map-action icon-button" type="button" aria-label="Center current location">⌖</button>
+
+      <section id="plan-view" class="app-view plan-view" aria-label="Plan a route">
+        <div class="surface plan-sheet">
+          <div class="sheet-grabber" aria-hidden="true"></div>
+          <p class="eyebrow">Walk San Francisco your way</p>
+          <h1>Where are you going?</h1>
+
+          <form id="route-form" novalidate>
+            <div class="location-stack">
+              <div class="location-field">
+                <span class="location-marker origin-marker" aria-hidden="true"></span>
+                <label for="origin-address">Start</label>
                 <input
                   id="origin-address"
                   name="origin-address"
                   autocomplete="street-address"
-                  placeholder="Start address or place"
+                  placeholder="Current location or address"
+                  aria-autocomplete="list"
+                  aria-controls="origin-suggestions"
                 />
-                <button
-                  id="use-location-button"
-                  type="button"
-                  aria-label="Use current location as start"
-                  title="Use current location as start"
-                >
-                  Current
-                </button>
+                <button id="use-location-button" class="inline-location-button" type="button" aria-label="Use current location as start">⌖</button>
+                <div id="origin-suggestions" class="suggestions" role="listbox"></div>
               </div>
-            </label>
-            <label class="wide-field">
-              <span>Destination</span>
-              <input
-                id="destination-address"
-                name="destination-address"
-                autocomplete="street-address"
-                placeholder="Destination address or place"
-              />
-            </label>
-          </div>
-
-          <div class="control-row">
-            <label class="mode-field">
-              <span>Mode</span>
-              <select id="mode" name="mode">
-                <option value="balanced" selected>Balanced</option>
-                <option value="avoid_hills">Avoid hills</option>
-                <option value="fastest">Fastest</option>
-                <option value="accessibility">Accessibility</option>
-              </select>
-            </label>
-            <button id="route-button" type="submit">Route</button>
-          </div>
-
-          <details class="coordinate-fields">
-            <summary>Coordinates</summary>
-            <div class="field-grid">
-              <label>
-                <span>Start Lat</span>
-                <input id="origin-lat" name="origin-lat" inputmode="decimal" />
-              </label>
-              <label>
-                <span>Start Lon</span>
-                <input id="origin-lon" name="origin-lon" inputmode="decimal" />
-              </label>
-              <label>
-                <span>Destination Lat</span>
-                <input id="destination-lat" name="destination-lat" inputmode="decimal" />
-              </label>
-              <label>
-                <span>Destination Lon</span>
-                <input id="destination-lon" name="destination-lon" inputmode="decimal" />
-              </label>
+              <div class="location-divider" aria-hidden="true"></div>
+              <div class="location-field">
+                <span class="location-marker destination-marker" aria-hidden="true"></span>
+                <label for="destination-address">Destination</label>
+                <input
+                  id="destination-address"
+                  name="destination-address"
+                  autocomplete="street-address"
+                  placeholder="Search an address or place"
+                  aria-autocomplete="list"
+                  aria-controls="destination-suggestions"
+                />
+                <div id="destination-suggestions" class="suggestions" role="listbox"></div>
+              </div>
             </div>
-          </details>
-        </form>
 
-        <div id="message" class="message" role="status"></div>
-        <div id="route-tabs" class="route-tabs" aria-label="Routes"></div>
-        <div id="summary" class="summary"></div>
-        <section id="next-step" class="next-step" aria-label="Next step"></section>
-        <section class="walk-tools" aria-label="Walk tools">
-          <div class="walk-row">
-            <button id="locate-button" type="button">Start GPS</button>
-          </div>
-          <div class="feedback-grid" aria-label="Route feedback">
-            <button type="button" data-feedback-type="good_route">Good</button>
-            <button type="button" data-feedback-type="weird_turn">Weird</button>
-            <button type="button" data-feedback-type="too_steep">Steep</button>
-            <button type="button" data-feedback-type="unsafe">Unsafe</button>
-            <button type="button" data-feedback-type="bad_name">Name</button>
-            <button type="button" data-feedback-type="other">Other</button>
-          </div>
-          <details class="note-details">
-            <summary>Add note</summary>
-            <label>
-              <span>Note</span>
-              <textarea id="feedback-note" rows="2" placeholder="Optional note"></textarea>
-            </label>
-          </details>
-        </section>
-        <details class="steps-details">
-          <summary>All steps</summary>
-          <ol id="directions" class="directions"></ol>
-        </details>
+            <fieldset class="preference-picker">
+              <legend>Walking preference</legend>
+              <label class="preference-chip">
+                <input type="radio" name="mode" value="balanced" checked />
+                <span>Gentle hills</span>
+              </label>
+              <label class="preference-chip">
+                <input type="radio" name="mode" value="fastest" />
+                <span>Fastest</span>
+              </label>
+              <label class="preference-chip">
+                <input type="radio" name="mode" value="accessibility" />
+                <span>Avoid stairs</span>
+              </label>
+            </fieldset>
+
+            <button id="route-button" class="primary-button" type="submit">
+              <span>Find routes</span>
+              <span aria-hidden="true">→</span>
+            </button>
+            <p id="plan-message" class="inline-message" role="status"></p>
+          </form>
+        </div>
       </section>
+
+      <section id="compare-view" class="app-view compare-view" aria-label="Compare routes" hidden>
+        <div class="route-query-bar surface">
+          <button id="edit-route-button" class="bare-icon-button" type="button" aria-label="Edit route">‹</button>
+          <button id="route-query-summary" class="route-query-summary" type="button">
+            <strong id="query-destination">Destination</strong>
+            <span id="query-preference">Gentle hills</span>
+          </button>
+          <button id="compare-menu-button" class="bare-icon-button" type="button" aria-label="Route options">•••</button>
+        </div>
+
+        <section id="query-panel" class="surface results-sheet" aria-label="Route choices">
+          <button id="sheet-handle" class="sheet-handle" type="button" aria-label="Collapse route details" aria-expanded="true">
+            <span aria-hidden="true"></span>
+          </button>
+          <div id="route-tabs" class="route-tabs" role="tablist" aria-label="Routes"></div>
+
+          <div id="summary" class="route-summary">
+            <div class="route-summary-heading">
+              <div>
+                <p id="route-title" class="route-title">Recommended walk</p>
+                <p id="route-meta" class="route-meta"></p>
+              </div>
+              <span id="route-badge" class="route-badge"></span>
+            </div>
+            <div id="route-reason" class="route-reason"></div>
+            <div id="route-warnings" class="route-warnings"></div>
+          </div>
+
+          <div id="route-details" class="route-details" hidden>
+            <section class="slope-card" aria-labelledby="slope-heading">
+              <div class="section-heading">
+                <h2 id="slope-heading">Climb profile</h2>
+                <span id="slope-caption"></span>
+              </div>
+              <svg id="slope-profile" viewBox="0 0 320 92" role="img" aria-label="Elevation profile"></svg>
+            </section>
+            <section class="directions-card" aria-labelledby="directions-heading">
+              <div class="section-heading">
+                <h2 id="directions-heading">Directions</h2>
+                <span id="direction-count"></span>
+              </div>
+              <ol id="directions" class="directions"></ol>
+            </section>
+          </div>
+
+          <div class="route-actions">
+            <button id="details-button" class="secondary-button" type="button" aria-expanded="false">Details</button>
+            <button id="start-walk-button" class="primary-button" type="button">Start walking</button>
+          </div>
+          <p id="compare-message" class="inline-message" role="status"></p>
+        </section>
+      </section>
+
+      <section id="walk-view" class="app-view walk-view" aria-label="Walking navigation" hidden>
+        <div class="walk-banner">
+          <span id="maneuver-icon" class="maneuver-icon" aria-hidden="true">↑</span>
+          <div>
+            <span id="maneuver-distance" class="maneuver-distance">Starting route</span>
+            <strong id="next-step">Follow the route</strong>
+          </div>
+          <button id="mute-button" class="walk-icon-button" type="button" aria-label="Mute guidance">◖</button>
+        </div>
+
+        <div class="surface walk-footer">
+          <div>
+            <strong id="walk-time">— min</strong>
+            <span id="walk-meta">Waiting for location</span>
+          </div>
+          <div class="walk-actions">
+            <button id="report-button" class="secondary-button" type="button">Report</button>
+            <button id="end-walk-button" class="primary-button compact-button" type="button">End</button>
+          </div>
+          <button id="reroute-button" class="reroute-button" type="button" hidden>Re-route from here</button>
+          <p id="gps-status" class="inline-message" role="status">GPS idle</p>
+          <button id="locate-button" class="text-button" type="button">Start GPS</button>
+        </div>
+      </section>
+
+      <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+      <dialog id="feedback-dialog" class="app-dialog">
+        <form method="dialog" class="dialog-card">
+          <div class="dialog-heading">
+            <div><p class="eyebrow">Route feedback</p><h2>What happened?</h2></div>
+            <button class="bare-icon-button" value="cancel" aria-label="Close feedback">×</button>
+          </div>
+          <div class="feedback-grid">
+            <button type="button" data-feedback-type="good_route">Good route</button>
+            <button type="button" data-feedback-type="weird_turn">Weird turn</button>
+            <button type="button" data-feedback-type="too_steep">Too steep</button>
+            <button type="button" data-feedback-type="unsafe">Felt unsafe</button>
+            <button type="button" data-feedback-type="bad_name">Wrong name</button>
+            <button type="button" data-feedback-type="other">Something else</button>
+          </div>
+          <label class="note-field" for="feedback-note">Optional note</label>
+          <textarea id="feedback-note" rows="3" placeholder="Add a useful detail"></textarea>
+          <p id="feedback-message" class="inline-message" role="status"></p>
+        </form>
+      </dialog>
+
+      <dialog id="diagnostics-dialog" class="app-dialog">
+        <form method="dialog" class="dialog-card diagnostics-card">
+          <div class="dialog-heading">
+            <div><p class="eyebrow">Diagnostics</p><h2>Flemme status</h2></div>
+            <button class="bare-icon-button" value="cancel" aria-label="Close diagnostics">×</button>
+          </div>
+          <dl>
+            <div><dt>API</dt><dd id="health-status">Checking…</dd></div>
+            <div><dt>Graph</dt><dd id="health-pill">Checking…</dd></div>
+            <div><dt>GPS</dt><dd id="diagnostic-gps">Idle</dd></div>
+          </dl>
+          <p>Technical status stays here so the walking experience can stay focused.</p>
+        </form>
+      </dialog>
     </main>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="/static/app.js"></script>
+    <script type="module" src="/static/app.js"></script>
   </body>
 </html>

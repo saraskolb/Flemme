@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from app.core.astar import straight_line_distance_m
+from math import cos, radians
+
 from app.core.models import Graph, Node
 
 
@@ -8,18 +9,10 @@ def nearest_node(graph: Graph, lat: float, lon: float) -> Node | None:
     if not graph.nodes:
         return None
 
-    temporary_id = min(graph.nodes) - 1
-    temporary_graph = Graph(
-        nodes={
-            **graph.nodes,
-            temporary_id: Node(node_id=temporary_id, lat=lat, lon=lon),
-        },
-        edges=graph.edges,
-        version=graph.version,
-    )
+    lon_scale = cos(radians(lat))
     return min(
         graph.nodes.values(),
-        key=lambda node: straight_line_distance_m(temporary_graph, temporary_id, node.node_id),
+        key=lambda node: (node.lat - lat) ** 2 + ((node.lon - lon) * lon_scale) ** 2,
     )
 
 

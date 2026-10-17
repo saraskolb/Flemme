@@ -69,9 +69,7 @@ def test_page_to_duboce_route_directions_use_specific_street_names() -> None:
 
     assert audit_route_direction_quality(routes) == []
     street_names = [step.street_name for step in recommended.directions]
-    assert street_names[:3] == ["Page Street", "Broderick Street", "Haight Street"]
-    assert street_names[-1] == "Duboce Avenue"
-    assert len(street_names) <= 6
+    assert street_names == ["Page Street", "Scott Street", "Duboce Avenue"]
     assert recommended.metrics.gain_m < fastest.metrics.gain_m
     assert sum(edge.length_above_6pct_up_m for edge in recommended_edges) < (
         sum(edge.length_above_6pct_up_m for edge in fastest_edges) * 0.35

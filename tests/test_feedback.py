@@ -49,3 +49,29 @@ def test_feedback_endpoint_appends_route_feedback(
     assert records[0]["feedback_type"] == "weird_turn"
     assert records[0]["route_edge_ids"] == [101, 102]
     assert records[0]["current_position"]["accuracy_m"] == 8.0
+
+
+def test_feedback_endpoint_deduplicates_idempotency_key(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    feedback_path = tmp_path / "route_feedback.jsonl"
+    monkeypatch.setenv("FEEDBACK_JSONL_PATH", str(feedback_path))
+    client = TestClient(app)
+    request = {
+        "feedback_type": "good_route",
+        "route_id": "route_demo",
+        "step_id": "step_demo_1",
+        "idempotency_key": "feedback-demo-1",
+        "route_edge_ids": [101, 102],
+    }
+
+    first = client.post("/feedback", json=request)
+    second = client.post("/feedback", json=request)
+
+    assert first.status_code == 201
+    assert second.status_code == 201
+    assert first.json()["feedback_id"] == second.json()["feedback_id"]
+    assert first.json()["duplicate"] is False
+    assert second.json()["duplicate"] is True
+    assert len(feedback_path.read_text().splitlines()) == 1

@@ -1,10 +1,10 @@
 # Flemme
 
-Flemme is a hill-aware walking navigation engine for San Francisco. This first
-vertical slice focuses on the custom routing core: directed pedestrian graph
-models, grade processing, route scoring, A* search, route alternatives,
-explanations, a synthetic San Francisco hill fixture, FastAPI endpoints, and a
-PostGIS schema.
+Flemme is a hill-aware walking navigator for San Francisco. It combines a
+custom routing engine with a responsive Plan → Compare → Walk experience:
+directed pedestrian graph models, grade processing, route scoring, route
+alternatives, plain-language explanations, live walking progress, FastAPI
+endpoints, and a PostGIS schema.
 
 The real-data path can now load bounded and city-wide San Francisco walking
 graphs from OSM via Overpass, enrich them with local USGS DEM rasters, batch
@@ -23,12 +23,23 @@ validation adapters are still future work.
   - Route A: 0.6 mi, 10 minutes, includes a 16% hill
   - Route B: 0.7 mi, 11 minutes, avoids the steep hill
 - Route candidates and recommended route explanations
+- Stable route and step IDs, route bounds, elevation profiles, comparison
+  deltas, reason codes, coverage metadata, and data-quality warnings
 - FastAPI health and development synthetic-route endpoints
+- Local-first address suggestions with a Nominatim fallback
 - PostGIS schema and initial Alembic migration
 - Real OSM/Overpass graph loading to JSON, plus optional PostGIS writes
 - Local DEM raster elevation sampling for coarse city-wide and dense
   neighborhood graph builds
 - File-backed `/route` via `GRAPH_JSON_PATH`
+- Startup graph preloading so the first route request does not pay the full
+  graph-deserialization cost
+- Responsive Plan, Compare, and Walk views with route switching, draggable
+  result sheets, elevation details, and installable-PWA support
+- Browser GPS progress, next-step guidance, off-route detection, and manual or
+  automatic rerouting while the app is open
+- Contextual route feedback with stable route/step references and idempotent
+  server-side writes
 - DataSF street centerline edge naming, with clean stubs for remaining DataSF
   pedestrian-quality joins and Google validation adapters
 
@@ -93,7 +104,7 @@ To route against a loaded real graph JSON:
 GRAPH_JSON_PATH=data/graphs/page_duboce_walk_graph.json uvicorn app.main:app --reload
 ```
 
-The FastAPI app also serves a small local route-planner UI at `/`. To run it
+The FastAPI app also serves the responsive route-planner UI at `/`. To run it
 against the city-wide San Francisco DEM graph:
 
 ```bash
@@ -103,14 +114,15 @@ scripts/run_local_sf_ui.sh
 Then open http://127.0.0.1:8000/ and enter San Francisco start and destination
 addresses. The launcher uses `data/graphs/sf_walk_graph_dem_10m.json` when it
 exists and falls back to `data/graphs/sf_walk_graph_dem_100m.json` otherwise.
-The city-wide JSON cache is large, so the first route request may take around
-20 seconds while the graph loads; subsequent route queries reuse the cached
-graph in memory.
+The city-wide JSON cache is large. The app now preloads it during startup and
+reuses the graph in memory, so wait for `/health` to report `route_ready: true`
+before field testing.
 
 The UI is installable as a lightweight phone PWA when served over localhost or
-HTTPS. It uses web map tiles when the phone has internet access, can follow the
-current GPS position while the page is open, and posts route feedback to
-`POST /feedback`. Feedback is appended to
+HTTPS. It uses OpenStreetMap tiles when the phone has internet access, can
+follow walking progress and reroute from the current GPS position while the
+page is open, and posts contextual route feedback to `POST /feedback`.
+Feedback is appended to
 `data/feedback/route_feedback.jsonl` by default; set `FEEDBACK_JSONL_PATH` to
 write it somewhere else.
 
@@ -435,15 +447,25 @@ The core flow is:
   locally because Docker/PostGIS is not available in this environment.
 - Open-Meteo elevation is coarse for sidewalk-grade decisions; use USGS EPQS or
   local DEM raster sampling for higher-resolution validation.
-- Snapping is a simple nearest-node helper for fixture/development use.
-- No contraction hierarchies, live traffic, mobile UI, or full Pareto label
-  routing yet.
+- Snapping scans graph nodes directly; it no longer rebuilds the graph per
+  request, but a spatial index is still needed for the largest deployments.
+- Accessibility preferences can forbid known stairs, but curb-ramp, sidewalk,
+  and closure coverage is incomplete, so the UI does not claim a guaranteed
+  step-free route.
+- Walking guidance depends on browser GPS and runs only while the app is open;
+  background navigation and spoken turn guidance are not implemented yet.
+- There are no contraction hierarchies, live closures/traffic, or full Pareto
+  label routing yet.
 
 ## Next Steps
 
-1. Replace bootstrap Open-Meteo elevations with local DEM raster sampling.
-2. Add address geocoding and a Google Maps validation harness.
-3. Join DataSF sidewalk, curb-ramp, and safety datasets.
-4. Verify PostGIS loading with Docker/PostGIS.
-5. Expand from route-corridor loads to full San Francisco graph snapshots.
-6. Add bounded Pareto route search once real-data tests are stable.
+1. Field-test Plan, Compare, and Walk flows on representative SF routes and add
+   every routing miss to the regression diary.
+2. Add a spatial node index and a compact/tiled graph format for faster,
+   lower-memory production startup.
+3. Join DataSF sidewalk, curb-ramp, crossing-safety, and closure datasets.
+4. Deploy the API behind HTTPS so installable-PWA and GPS behavior can be
+   tested away from localhost.
+5. Verify and benchmark PostGIS loading against the JSON-backed route service.
+6. Add bounded Pareto route search, background navigation, and spoken guidance
+   once field-route quality is stable.

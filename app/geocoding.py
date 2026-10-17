@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from functools import lru_cache
+from hashlib import sha256
 from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
@@ -32,6 +33,12 @@ class GeocodeResult:
     lat: float
     lon: float
     display_name: str
+
+
+@dataclass(frozen=True, slots=True)
+class GeocodeSuggestion:
+    place_id: str
+    result: GeocodeResult
 
 
 LOCAL_HINTS: tuple[tuple[tuple[str, ...], GeocodeResult], ...] = (
@@ -161,6 +168,90 @@ def _local_match(query: str) -> GeocodeResult | None:
         if all(term in normalized for term in terms):
             return result
     return None
+
+
+def _place_id(prefix: str, display_name: str) -> str:
+    digest = sha256(display_name.casefold().encode()).hexdigest()[:16]
+    return f"{prefix}_{digest}"
+
+
+def _local_suggestions(query: str, limit: int) -> list[GeocodeSuggestion]:
+    terms = [term for term in query.casefold().replace(",", " ").split() if len(term) > 1]
+    if not terms:
+        return []
+
+    matches: list[tuple[int, GeocodeSuggestion]] = []
+    seen: set[tuple[float, float]] = set()
+    for hint_terms, result in LOCAL_HINTS:
+        haystack = f"{' '.join(hint_terms)} {result.display_name}".casefold()
+        score = sum(term in haystack for term in terms)
+        if score == 0:
+            continue
+        location_key = (result.lat, result.lon)
+        if location_key in seen:
+            continue
+        seen.add(location_key)
+        matches.append(
+            (
+                score,
+                GeocodeSuggestion(
+                    place_id=_place_id("local", result.display_name),
+                    result=result,
+                ),
+            )
+        )
+    matches.sort(key=lambda item: (-item[0], item[1].result.display_name))
+    return [suggestion for _, suggestion in matches[:limit]]
+
+
+@lru_cache(maxsize=256)
+def suggest_addresses(
+    address: str,
+    endpoint: str = DEFAULT_ENDPOINT,
+    place_hint: str = DEFAULT_PLACE_HINT,
+    viewbox: str = DEFAULT_VIEWBOX,
+    user_agent: str = DEFAULT_USER_AGENT,
+    timeout_s: float = 8.0,
+    limit: int = 5,
+) -> list[GeocodeSuggestion]:
+    query = _with_place_hint(address, place_hint)
+    local_results = _local_suggestions(address, limit)
+    if local_results:
+        return local_results
+
+    params = {
+        "q": query,
+        "format": "jsonv2",
+        "limit": str(limit),
+        "addressdetails": "1",
+        "countrycodes": "us",
+        "viewbox": viewbox,
+        "bounded": "0",
+    }
+    request = Request(
+        f"{endpoint}?{urlencode(params)}",
+        headers={"Accept": "application/json", "User-Agent": user_agent},
+    )
+    try:
+        with urlopen(request, timeout=timeout_s) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+    except (HTTPError, URLError, TimeoutError, json.JSONDecodeError) as exc:
+        raise GeocodingServiceError("Address suggestions are unavailable right now.") from exc
+
+    if not isinstance(payload, list):
+        return []
+    suggestions: list[GeocodeSuggestion] = []
+    for item in payload:
+        if not isinstance(item, dict):
+            continue
+        try:
+            result = _result_from_payload(query, item)
+        except GeocodingLookupError:
+            continue
+        raw_place_id = str(item.get("place_id") or item.get("osm_id") or "")
+        place_id = f"osm_{raw_place_id}" if raw_place_id else _place_id("osm", result.display_name)
+        suggestions.append(GeocodeSuggestion(place_id=place_id, result=result))
+    return suggestions[:limit]
 
 
 @lru_cache(maxsize=256)

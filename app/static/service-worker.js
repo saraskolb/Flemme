@@ -1,7 +1,9 @@
-const CACHE_NAME = "flemme-shell-v13";
+const CACHE_NAME = "flemme-shell-v14";
 const SHELL_URLS = [
   "/",
   "/static/app.js",
+  "/static/api.js",
+  "/static/map.js",
   "/static/styles.css",
   "/static/manifest.webmanifest",
   "/static/icon.svg",

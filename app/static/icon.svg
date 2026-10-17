@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="flemme">
-  <rect width="512" height="512" rx="128" fill="#f9a8d4"/>
+  <rect width="512" height="512" rx="128" fill="#b91c62"/>
   <path d="M96 338c88-28 123-140 202-140 48 0 78 41 118 36" fill="none" stroke="#fff7fb" stroke-width="38" stroke-linecap="round"/>
-  <circle cx="124" cy="340" r="31" fill="#be185d" stroke="#fff7fb" stroke-width="20"/>
-  <circle cx="396" cy="232" r="31" fill="#a78bfa" stroke="#fff7fb" stroke-width="20"/>
+  <circle cx="124" cy="340" r="31" fill="#176c4f" stroke="#fff7fb" stroke-width="20"/>
+  <circle cx="396" cy="232" r="31" fill="#d92d76" stroke="#fff7fb" stroke-width="20"/>
   <path d="M120 386h272" stroke="#fff7fb" stroke-width="24" stroke-linecap="round" opacity=".72"/>
 </svg>
